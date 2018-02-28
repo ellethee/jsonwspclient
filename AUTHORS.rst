@@ -2,4 +2,4 @@
 Developers
 ==========
 
-* Luca Zaccaria <luca.zaccaria@essepaghe.it>
+* ellethee <luca800@gmail.com>
