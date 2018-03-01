@@ -15,25 +15,52 @@ from jsonwspresponse import JsonWspResponse
 from jsonwspmultipart import MultiPartWriter
 import jsonwsputils as utils
 log = logging.getLogger('jsonwspclient')
-__version__ = '1.0.0'
+__version__ = '1.0.3'
 
 
 class JsonWspClient(object):
+    """JsonWsp Client
 
-    """JsonWsp Client"""
+    The JSON-WSP Client class
+
+    Args:
+        url (str): base url where to retrieve all services.
+        services ([str]): list of Service names to retrieve.
+        headers (dict): Headers to add or repalce.
+        events ([(str, function)]): list of tuples contaning the event name
+            and the relative function.
+        process_response ([function]): list of functions that can process
+            and/or modify responses before they are returned.
+        params_mapping (dict): Dictionary with mapping for client attributes or
+            methods to service command parmaters.
+        proxies (dict): Dictionary mapping protocol to the URL of the proxy (see
+            `Requests proxies <http://docs.python-requests.org/en/master/user/advanced/#proxies>`_)
+        verify (bool, str): Either a boolean, in which case it controls whether we
+            verify the server's TLS certificate, or a string, in which case
+            it must be a path to a CA bundle to use. (see
+            `Requests SSL Cert Verification <http://docs.python-requests.org/en/master/user/advanced/?highlight=ssl#ssl-cert-verification>`_)
+    """
+    events = []
+    """([(str, function)]): list of tuples contaning the event name and the relative function.
+    """
+
     params_mapping = {}
+    """(dict): Dictionary with mapping for client attributes or
+            methods to service command parmaters.
+    """
     process_response = []
-    _events = []
-
+    """([function]): list of functions that can process
+            and/or modify responses before they are returned.
+    """
     def __init__(
             self, url, services, headers=None, events=None, process_response=None,
-            proxy=None, verify=False, params_mapping=None, **kwargs):
+            params_mapping=None, proxies=None, verify=False, **kwargs):
         self.session = requests.Session()
         self.url = url
         self.process_response = process_response or self.process_response
-        self._observer = utils.Observer(events or self._events)
+        self._observer = utils.Observer(events or self.events)
         version, release = __version__.split('.', 1)
-        self.session.proxies.update(proxy or {})
+        self.session.proxies.update(proxies or {})
         self.session.headers.update({
             "User-Agent": "JSONWspClient/{} ({}; rev: {})".format(
                 version, platform.platform(), release),
@@ -56,16 +83,39 @@ class JsonWspClient(object):
 
     @property
     def service(self, name):
-        """return service"""
+        """return service
+
+        Args:
+            name (str): name of the service to retrieve
+
+        Returns:
+            JsonWspService: the service object
+        """
         return self._services.get(name)
 
     @property
     def method(self, name):
-        """return service"""
+        """return method
+
+        Args:
+            name (str): name of the service to retrieve
+
+        Returns:
+            function: the services method if possible.
+        """
         return self._methods.get(name)
 
     def post(self, path, data=None, method='POST'):
-        """Post request"""
+        """Post a request
+
+        Args:
+            path (str): Path relative to base url of the client instance.
+            data (dict): Dictionary with data to post (will be convert into json string).
+            method (str): Method to use (default to POST)
+
+        Returns:
+            JsonWspResponse: The response to the request.
+        """
         self.trigger(
             'client.post.before', client=self, path=path, data=data,
             method=method)
@@ -79,7 +129,17 @@ class JsonWspClient(object):
         return response
 
     def post_mp(self, path, data=None, attachs=None, method="POST"):
-        """Post multipart"""
+        """Post a multipart requests
+
+        Args:
+            path (str): Path relative to base url of the client instance.
+            data (dict): Dictionary with data to post (will be convert into json string).
+            attachs (dict): Dictionary with files id and relative file object. ({fileid: fileobject})
+            method (str): Method to use (default to POST)
+
+        Returns:
+            JsonWspResponse: The response to the request.
+        """
         self.trigger(
             'client.post_mp.before', client=self, path=path, data=data,
             attachs=attachs, method=method)

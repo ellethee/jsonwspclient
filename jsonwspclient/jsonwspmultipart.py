@@ -31,9 +31,9 @@ def stringify_headers(headers):
     return b"\n".join("{}: {}".format(k, v) for k, v in headers.items()) + HDFIL2
 
 
-class Attachment(object):
+class JsonWspAttachment(object):
 
-    """Attachment"""
+    """Class for the attachments"""
     path = ''
     att_id = ''
     filename = None
@@ -65,10 +65,24 @@ class Attachment(object):
         return open(self.filename, mode)
 
     def save(self, path, filename=None, overwrite=True):
-        """save"""
+        """Save the file to path
+
+        Args:
+            path (str): Path where to save the file.
+            filename (str): Name for the file (if not already in path)
+            overwrite (boo): Overwrite the file or no (default True)
+
+        Raises:
+            IOError: if overwrite is False and file already exists.
+
+        Note:
+            If `path` is just a folder without the filename and no filename
+            param is specified it will try to use the filename in the
+            content-disposition header if one.
+        """
         filename = filename or self.filename
         if os.path.isdir(path):
-            if filename is None:
+            if not filename:
                 raise ValueError("filename needed")
             path = os.path.join(path, filename)
         if overwrite is False and os.path.exists(path):
@@ -157,7 +171,7 @@ class MultiPartReader(object):
                     if attach.att_id:
                         self.by_id[attach.att_id] = attach
                 if not self._at_eop:
-                    attach = Attachment(self._pcount)
+                    attach = JsonWspAttachment(self._pcount)
                     self._fid = attach.descriptor
                     self.attachs[self._pcount] = attach
                     self._pcount += 1
@@ -219,7 +233,7 @@ class MultiPartWriter(object):
         self.headers = {
             "Content-type": b'multipart/related; boundary=' + self._boundary,
             "Accept": b'application/json,multipart/related',
-            }
+        }
 
     def _get_length(self):
         """Get Length"""
