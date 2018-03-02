@@ -55,3 +55,8 @@ class TransferService(object):
             response.data = attachment(open(filename, 'r'))
             responses.append(response)
         return responses
+
+    @ladonize(rtype=dict)
+    def get_info(self):
+        """Some Info"""
+        return dict(name='JsonWspClient tester')
