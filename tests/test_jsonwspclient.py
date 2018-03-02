@@ -8,15 +8,15 @@ Test_jsonwspclient :mod:`tests.test_jsonwspclient`
 from __future__ import print_function
 from os.path import abspath, basename, dirname, join
 import filecmp
+import time
 import pytest
-from pytest_localserver.http import WSGIServer
-from ladon.server.wsgi import LadonWSGIApplication
 from jsonwspclient import JsonWspClient
-from jsonwspclient.jsonwsputils import get_fileitem
+from jsonwspclient.jsonwsputils import get_fileitem 
 PATH = dirname(__file__)
 RES_PATH = join(PATH, 'resource')
 DOWN_PATH = join(PATH, 'download')
 UP_PATH = join(PATH, 'upload')
+FILENAME = 'bintest-20-1.txt'
 
 
 def all_events(event_name, **kwargs):
@@ -25,42 +25,52 @@ def all_events(event_name, **kwargs):
         pct = (float(kwargs['value']) / float(kwargs['max_value'])) * 100.0
         print("{} {}%\r".format(event_name, pct), end='')
     else:
-        print("{}: {}".format(
-            event_name,
-            ", ".join(kwargs.keys())))
+        print("{}: {}".format(event_name, ", ".join(kwargs.keys())))
 
+@pytest.mark.usefixtures("cleandir")
+class TestJsonWspClient(object):
 
-@pytest.fixture
-def testserver(request):
-    """Defines the testserver funcarg"""
-    script_list = [join(PATH, 'transfertest.py')]
-    scripts = []
-    path_list = {}
-    for script in script_list:
-        parts = script.split('.py')
-        scripts += [basename(parts[0])]
-        path_list[dirname(abspath(parts[0]))] = 1
-    path_list = list(path_list.keys())
-    application = LadonWSGIApplication(scripts, path_list)
-    server = WSGIServer(application=application)
-    server.start()
-    request.addfinalizer(server.stop)
-    return server
+    """Test class"""
 
+    @staticmethod
+    def test_upload(testserver):
+        """test uploads"""
+        cli = JsonWspClient(
+            testserver.url, services=['TransferService'],
+            events=[('*', all_events)])
+        cli.upload(incoming=get_fileitem(join(RES_PATH, FILENAME)))
+        assert filecmp.cmpfiles(RES_PATH, UP_PATH, FILENAME)
 
-def test_upload(testserver):
-    """test uploads"""
-    filename = 'bintest-100-1.txt'
-    cli = JsonWspClient(
-        testserver.url, services=['TransferService'], events=[('*', all_events)])
-    cli.upload(incoming=get_fileitem(join(RES_PATH, filename)))
-    assert filecmp.cmpfiles(RES_PATH, DOWN_PATH, filename)
+    @staticmethod
+    def test_download(testserver):
+        """test download"""
+        cli = JsonWspClient(
+            testserver.url, services=['TransferService'],
+            events=[('*', all_events)])
+        cli.download(name=FILENAME).save_all(DOWN_PATH)
+        assert filecmp.cmpfiles(RES_PATH, DOWN_PATH, FILENAME)
 
+    @staticmethod
+    def test_process_response(testserver):
+        """test process_response"""
+        mp_msg = "Yes i'm multi part"
+        nmp_msg = "No i'm not multi part"
+        def add_info(response, **dummy_kwargs):
+            """add info"""
+            if response.is_multipart:
+                response.response_dict['testinfo'] = mp_msg
+            else:
+                response.response_dict['testinfo'] = nmp_msg
+            return response
 
-def test_download(testserver):
-    """test download"""
-    filename = 'bintest-100'
-    cli = JsonWspClient(
-        testserver.url, services=['TransferService'], events=[('*', all_events)])
-    cli.download(name=filename)
-    assert filecmp.cmpfiles(RES_PATH, UP_PATH, filename)
+        def objectify(response, **dummy_kwargs):
+            """objectify"""
+            response.objpart = type('ObjPart', (object, ), response.response_dict)
+            return response
+
+        cli = JsonWspClient(
+            testserver.url, services=['TransferService'],
+            process_response=[add_info, objectify])
+        res = cli.get_info()
+        assert hasattr(res.objpart, '__name__')
+        assert res.objpart.testinfo == nmp_msg
