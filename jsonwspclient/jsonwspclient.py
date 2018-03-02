@@ -68,8 +68,6 @@ class JsonWspClient(object):
             "Accept": "application/json,multipart/related"
         })
         self.trigger = self._observer.trigger
-        self.add_event = self._observer.add
-        self.remove_event = self._observer.remove
         self.session.headers.update(headers or {})
         self.session.verify = verify
         self.session.stream = True
@@ -78,8 +76,20 @@ class JsonWspClient(object):
         self._methods = {}
         self.params_mapping = params_mapping or self.params_mapping
         self.last_response = None
+        self.add_event = self._observer.add
+        self.remove_event = self._observer.remove
         for service in services:
             self._load_service(service)
+
+    def add_events(self, *events):
+        """Add events"""
+        for event, funct in events:
+            self._observer.add(event, funct)
+
+    def remove_events(self, *events):
+        """Remove events"""
+        for event, funct in events:
+            self._observer.remove(event, funct)
 
     @property
     def service(self, name):
@@ -126,6 +136,7 @@ class JsonWspClient(object):
         self.trigger(
             'client.post.after', client=self, path=path, data=data,
             method=method, response=response)
+        self.last_response = response
         return response
 
     def post_mp(self, path, data=None, attachs=None, method="POST"):
@@ -157,7 +168,12 @@ class JsonWspClient(object):
         self.trigger(
             'client.post_mp.after', client=self, path=path, data=data,
             attachs=attachs, method=method, response=response)
+        self.last_response = response
         return response
+
+    def close(self):
+        """Close"""
+        self.session.close()
 
     def _load_service(self, service):
         """Load service"""
