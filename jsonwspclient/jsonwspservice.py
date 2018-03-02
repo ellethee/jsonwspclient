@@ -99,7 +99,6 @@ class JsonWspService(object):
         if self.description_loaded:
             minfo = self._method_info(method_name)
             mandatory_params = list(minfo['mandatory_params'])
-            # optional_params = list(minfo['optional_params'])
             for arg in kwargs:
                 if arg in mandatory_params:
                     mandatory_params.remove(arg)
@@ -120,7 +119,8 @@ class JsonWspService(object):
             attachment_map=attachment_map, **data)
         for process_response in self.client.process_response:
             try:
-                response = process_response(response, self.client, self)
+                response = process_response(
+                    response, service=self, client=self.client)
             except StandardError:
                 pass
         return response
