@@ -21,10 +21,24 @@ class File(LadonType):
     data = attachment
     name = PORTABLE_STRING
 
+class User(LadonType):
+    """UserType"""
+    username = PORTABLE_STRING
+    token = PORTABLE_STRING
+
 
 class TransferService(object):
 
     """TransferTest"""
+
+    def __init__(self):
+        self.user = User()
+        self.user.username = 'ellethee'
+        self.user.token = '123456'
+
+    def _check_token(self, token):
+        """check_token"""
+        return self.user.token == token
 
     @ladonize(File, rtype=int)
     def upload(self, incoming):
@@ -59,4 +73,14 @@ class TransferService(object):
     @ladonize(rtype=dict)
     def get_info(self):
         """Some Info"""
-        return dict(name='JsonWspClient tester')
+        return {'name': 'JsonWspClient tester'}
+
+    @ladonize(rtype=User)
+    def get_user(self):
+        """Rreturn user dict"""
+        return self.user
+
+    @ladonize(PORTABLE_STRING, rtype=bool)
+    def check_token(self, token):
+        """check_token"""
+        return self._check_token(token)
