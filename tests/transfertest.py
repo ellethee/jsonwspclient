@@ -17,7 +17,6 @@ UP_PATH = join(PATH, 'upload')
 
 
 class File(LadonType):
-
     """Filetype"""
     data = attachment
     name = PORTABLE_STRING

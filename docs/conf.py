@@ -15,9 +15,7 @@ import os
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 # sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('.'))
-SRC_PATH = os.path.abspath('../jsonwspclient')
-sys.path.insert(0, SRC_PATH)
+sys.path.insert(0, os.path.abspath('..'))
 
 # -- Hack for ReadTheDocs ------------------------------------------------------
 # This hack is necessary since RTD does not issue `sphinx-apidoc` before running
