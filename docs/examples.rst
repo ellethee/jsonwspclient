@@ -28,24 +28,16 @@ Event handling
 
 .. code-block:: python
 
+    from __future__ import print_function # python 2
     from jsonwspclient import JsonWspClient
 
-    def print_event(event_name, **kwargs):
+    def download_event(event_name, fobj, value, max_value):
         """Print event"""
-        # if we are writing or reading a file we should print the percentage
-        if event_name in ('file.write', 'file.read'):
-            pct = kwargs['value'] * float(kwargs['max_value']) / 100
-            print("{} {}%\r".format(event_name, pct), end='')
-        else:
-            # esle we will print only the event name.
-            print(event_name)
+        # print the percentage
+        pct = value * float(max_value) / 100
+        print("{}%\r".format(pct), end='')
    
-    # our events must be a list of tuple. in the format (<event_name>|'*', <function>)
-    # in this case we will filter the event name in the function itself so we
-    # can use the '*' char.
-    events = [('*', print_event)]
-
-    cli = JsonWspClient('http://mysite.com', services=['TransferService'], events=events)
+    cli = JsonWspClient('http://mysite.com', services=['TransferService'], events=[('file.read', download_event)])
     cli.donwload(name='testfile.txt').save_all('/tmp') 
 
 
@@ -69,7 +61,7 @@ We can achive this easely with the **response processors**.
         # we add the attribute **result** to the response which will contain the object 
         # version of the **result** part of the response_dict.
         response.result = type('Result', (object, ), response.response_dict['result'])
-        # we MUST return te reponse in a process_response function.
+        # we MUST return te reponse in a processors function.
         return response
 
     def set_user_info(response, service, client, method_name, **kwargs):
@@ -81,9 +73,9 @@ We can achive this easely with the **response processors**.
             client.username = response.result['username']
             client.token = response.result['token']
 
-    # our client with process_response.
+    # our client with processors.
     cli = JsonWspClient('http://mysite.com', services=['Authenticate'],
-                        process_response=[objectify_result, set_user_info])
+                        processors=[objectify_result, set_user_info])
     # Authenticate
     res = cli.auth(username='username', password='password')
     # now our client object have the token attribute.
@@ -138,7 +130,7 @@ All together now (with subclassing)
         # we will download only so we will bind only the file.write event.
         events = [('file.read', file_handler)]
         # we will objectify the result.
-        process_response = [objectify]
+        processors = [objectify]
         # and map the token parma to the get_token method
         params_mapping = {'token': 'get_token'}
         user = None

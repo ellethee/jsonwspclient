@@ -22,7 +22,7 @@ with **download** and **upload** methods:
 
 wich becames:
 
-    cli.auth(), cli.donwload() and cli.upload()
+    ``cli.auth(), cli.donwload() and cli.upload()``
 
 
 Event handling
