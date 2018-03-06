@@ -96,7 +96,7 @@ class JsonWspResponse(object):
         Returns:
             JsonWspAttachment: the attachment object.
         """
-        return self._reader.next()
+        return next(self._reader)
 
     def save_all(self, path, name='name'):
         """Save all the attachments ad once

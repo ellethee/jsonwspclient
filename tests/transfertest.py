@@ -59,7 +59,7 @@ class TransferService(object):
         response = File()
         response.name = name
         filename = join(RES_PATH, response.name)
-        response.data = attachment(open(filename, 'r'))
+        response.data = attachment(open(filename, 'rb'))
         return response
 
     @ladonize(PORTABLE_STRING, PORTABLE_STRING, rtype=File)
@@ -70,7 +70,7 @@ class TransferService(object):
         response = File()
         response.name = name
         filename = join(RES_PATH, response.name)
-        response.data = attachment(open(filename, 'r'))
+        response.data = attachment(open(filename, 'rb'))
         return response
 
     @ladonize(PORTABLE_STRING, rtype=[File])
@@ -82,7 +82,7 @@ class TransferService(object):
             response.name = "{}-{}.txt".format(name, idx + 1)
             filename = join(RES_PATH, response.name)
             size = getsize(filename)
-            response.data = attachment(open(filename, 'r'))
+            response.data = attachment(open(filename, 'rb'))
             responses.append(response)
         return responses
 

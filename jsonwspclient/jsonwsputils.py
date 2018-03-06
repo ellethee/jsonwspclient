@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-=============================================
+==============================================
 Jsonwsputils :mod:`jsonwspclient.jsonwsputils`
-=============================================
+==============================================
 
 """
 # pylint: disable=relative-import
@@ -72,7 +72,7 @@ def check_attachment(items):
     if not isinstance(items, list):
         items = [items]
     for item in items:
-        for value in item.itervalues():
+        for value in item.values():
             if not isinstance(value, PortableString):
                 continue
             isatt = has_attachments(value)

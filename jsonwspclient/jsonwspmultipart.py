@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-=====================================================
+======================================================
 Jsonwspmultipart :mod:`jsonwspclient.jsonwspmultipart`
-=====================================================
+======================================================
 
 """
-# pylint: disable=relative-import
+from __future__ import with_statement, absolute_import, print_function
 from hashlib import md5
 import json
 import logging
@@ -15,20 +15,23 @@ import shutil
 import tempfile
 import time
 from requests.structures import CaseInsensitiveDict
+import six
 from . import jsonwsputils as utils
 log = logging.getLogger('jsonwspclient')
-SPLIT = r'(?m)--<b>\n|\n--<b>\n|\n--<b>--|--<b>\r\n|\r\n--<b>\r\n|\r\n--<b>--'
-get_headers = re.compile(r'(?m)^(?P<name>.+)\s*:\s*(?P<value>.+)\s*$').findall
-split_headers = re.compile(r'(?m)\n\n|\r\n\r\n').search
+SPLIT = b'(?m)--<b>\n|\n--<b>\n|\n--<b>--|--<b>\r\n|\r\n--<b>\r\n|\r\n--<b>--'
+get_headers = re.compile(b'(?m)^(?P<name>.+)\s*:\s*(?P<value>.+)\s*$').findall
+split_headers = re.compile(b'(?m)\n\n|\r\n\r\n').search
 get_filename = re.compile(
     r'(?i)filename=[\"\']?(?P<filename>.+)[\"\']?;?').findall
-HDFILL = '\r\n\r\n'
-HDFIL2 = '\n\n'
+HDFILL = b'\r\n\r\n'
+HDFIL2 = b'\n\n'
 
 
-def stringify_headers(headers):
+def stringify_headers(headers, encoding='UTF-8'):
     """stringi"""
-    return b"\n".join("{}: {}".format(k, v) for k, v in headers.items()) + HDFIL2
+    return b"\n".join(
+        b"%s: %s" % (k.encode(encoding), v.encode(encoding))
+        for k, v in headers.items()) + HDFIL2
 
 
 class JsonWspAttachment(object):
@@ -49,7 +52,8 @@ class JsonWspAttachment(object):
 
     def update(self, headers):
         """update headers"""
-        self.headers.update(headers)
+        self.headers.update({k.decode(): v.decode()
+                             for k, v in headers.items()})
         self.att_id = self.headers.get('content-id', self.att_id)
         self.filename = (
             get_filename(self.headers.get('content-disposition', '')) +
@@ -223,10 +227,10 @@ class MultiPartWriter(object):
         self._chunk_size = chunk_size
         self._enc = encoding
         self._boundary = (
-            boundary or md5(str(time.time())).hexdigest()
-        ).encode('utf-8')
+            boundary or md5(str(time.time()).encode(encoding)).hexdigest()
+        ).encode(encoding)
         self._jsonpart = jsonpart
-        self._bound = b'\n--{}'.format(self._boundary)
+        self._bound = b'\n--%s' % self._boundary
         self._files = files
         self._length = self._get_length()
         self._iter = None
@@ -251,14 +255,14 @@ class MultiPartWriter(object):
         return self._length
 
     def _get_multipart(self):
-        return "--" + self._boundary + "\n"
+        return b"--" + self._boundary + b"\n"
 
     def _get_jsonpart(self):
         """The Envelope part"""
         return stringify_headers({
             'Content-Type': 'application/json, charset={}'.format(self._enc),
             'Content-ID': 'body'
-        }) + json.dumps(self._jsonpart) + self._bound
+        }) + six.b(json.dumps(self._jsonpart)) + self._bound
 
     @staticmethod
     def _get_attachpart(fileid):
@@ -291,17 +295,20 @@ class MultiPartWriter(object):
         try:
             if self._iter is None:
                 self._iter = self._iterator(chunk_size)
-                return self._iter.next()
+                return next(self._iter)
             return self._iter.send(chunk_size)
         except StopIteration:
             return None
+
+    def __next__(self):
+        return self.next()
 
     def next(self):
         """Next"""
         if self._iter is None:
             self._iter = self._iterator()
         try:
-            return self._iter.next()
+            return next(self._iter)
         except StopIteration:
             return None
 
