@@ -9,8 +9,8 @@ Jsonwspservice :mod:`jsonwspclient.jsonwspservice`
 import logging
 import types
 import requests
-import jsonwsputils as utils
-import jsonwspexceptions as excs
+from . import jsonwsputils as utils
+from . import jsonwspexceptions as excs
 log = logging.getLogger('jsonwspclient')
 
 

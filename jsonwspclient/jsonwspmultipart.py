@@ -15,7 +15,7 @@ import shutil
 import tempfile
 import time
 from requests.structures import CaseInsensitiveDict
-import jsonwsputils as utils
+from . import jsonwsputils as utils
 log = logging.getLogger('jsonwspclient')
 SPLIT = r'(?m)--<b>\n|\n--<b>\n|\n--<b>--|--<b>\r\n|\r\n--<b>\r\n|\r\n--<b>--'
 get_headers = re.compile(r'(?m)^(?P<name>.+)\s*:\s*(?P<value>.+)\s*$').findall

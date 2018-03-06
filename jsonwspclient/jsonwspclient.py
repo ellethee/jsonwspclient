@@ -10,10 +10,10 @@ import logging
 import platform
 import requests
 from requests.compat import urljoin
-from jsonwspservice import JsonWspService
-from jsonwspresponse import JsonWspResponse
-from jsonwspmultipart import MultiPartWriter
-import jsonwsputils as utils
+from .jsonwspservice import JsonWspService
+from .jsonwspresponse import JsonWspResponse
+from .jsonwspmultipart import MultiPartWriter
+from . import jsonwsputils as utils
 log = logging.getLogger('jsonwspclient')
 __version__ = '1.0.3'
 

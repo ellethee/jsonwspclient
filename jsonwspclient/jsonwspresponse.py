@@ -7,9 +7,9 @@ Jsonwspresponse :mod:`jsonwspclient.jsonwspresponse`
 # pylint: disable=relative-import
 import logging
 import tempfile
-import jsonwsputils as utils
-from jsonwspmultipart import MultiPartReader
-import jsonwspexceptions as excs
+from . import jsonwsputils as utils
+from .jsonwspmultipart import MultiPartReader
+from . import jsonwspexceptions as excs
 log = logging.getLogger('jsonwspclient')
 
 
