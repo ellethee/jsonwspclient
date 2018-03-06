@@ -127,9 +127,9 @@ class JsonWspService(object):
             self._trigger(
                 'service.call_method.after', service=self, method=method_name,
                 attachment_map=attachment_map, **kwargs)
-            for process_response in self.client.process_response:
+            for processors in self.client.processors:
                 try:
-                    response = process_response(
+                    response = processors(
                         response, service=self, client=self.client,
                         method_name=method_name, **kwargs)
                 except StandardError:

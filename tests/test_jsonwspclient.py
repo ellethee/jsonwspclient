@@ -45,7 +45,7 @@ def test_download(testserver, cleandir):
 
 
 def test_process_response(testserver):
-    """test process_response"""
+    """test processors"""
     mp_msg = "Yes i'm multi part"
     nmp_msg = "No i'm not multi part"
 
@@ -64,7 +64,7 @@ def test_process_response(testserver):
 
     cli = JsonWspClient(
         testserver.url, services=['TransferService'],
-        process_response=[add_info, objectify])
+        processors=[add_info, objectify])
     res = cli.get_info()
     assert hasattr(res.objpart, '__name__')
     assert res.objpart.testinfo == nmp_msg
@@ -142,7 +142,7 @@ def test_all(testserver):
         # we will download only so we will bind only the file.write event.
         events = [('file.write', file_handler)]
         # we will objectify the result.
-        process_response = [objectify]
+        processors = [objectify]
         # and map the token parma to the get_token method
         params_mapping = {'token': 'get_token'}
         user = None

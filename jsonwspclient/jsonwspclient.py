@@ -29,7 +29,7 @@ class JsonWspClient(object):
         headers (dict): Headers to add or repalce.
         events ([(str, function)]): list of tuples contaning the event name
             and the relative function.
-        process_response ([function]): list of functions that can process
+        processors ([function]): list of functions that can process
             and/or modify responses before they are returned.
         params_mapping (dict): Dictionary with mapping for client attributes or
             methods to service command parmaters.
@@ -48,16 +48,16 @@ class JsonWspClient(object):
     """(dict): Dictionary with mapping for client attributes or
             methods to service command parmaters.
     """
-    process_response = []
+    processors = []
     """([function]): list of functions that can process
             and/or modify responses before they are returned.
     """
     def __init__(
-            self, url, services, headers=None, events=None, process_response=None,
+            self, url, services, headers=None, events=None, processors=None,
             params_mapping=None, proxies=None, verify=False, **kwargs):
         self.session = requests.Session()
         self.url = url
-        self.process_response = process_response or self.process_response
+        self.processors = processors or self.processors
         self._observer = utils.Observer(events or self.events)
         version, release = __version__.split('.', 1)
         self.session.proxies.update(proxies or {})
