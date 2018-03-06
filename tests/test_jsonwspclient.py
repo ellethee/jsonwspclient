@@ -7,15 +7,18 @@ Test_jsonwspclient :mod:`tests.test_jsonwspclient`
 """
 from __future__ import print_function
 from os.path import abspath, dirname, join
+import tempfile
 import filecmp
 import pytest
 from jsonwspclient import JsonWspClient
 from jsonwspclient.jsonwsputils import get_fileitem
+from jsonwspclient.jsonwspexceptions import JsonWspFault
 PATH = dirname(abspath(__file__))
 RES_PATH = join(PATH, 'resource')
 DOWN_PATH = join(PATH, 'download')
 UP_PATH = join(PATH, 'upload')
 FILENAME = 'bintest-20-1.txt'
+TMPPATH = tempfile.mkdtemp(prefix="jsonwspclient-test-")
 
 
 def all_events(event_name, **kwargs):
@@ -70,7 +73,7 @@ def test_process_response(testserver):
 def test_params_mapping_one(testserver):
     """params_mapping"""
     cli = JsonWspClient(
-        testserver.url, services=['TransferService'],
+        testserver.url, services=['Authenticate'],
         params_mapping={'token': 'token'})
     res = cli.get_user()
     cli.token = res.response_dict['result']['token']
@@ -92,6 +95,70 @@ def test_params_mapping_two(testserver):
         def token(self):
             """token param"""
             return self.user.get('token', '')
-    cli = MyClient(testserver.url, services=['TransferService'])
+    cli = MyClient(testserver.url, services=['Authenticate'])
     cli.getuser()
     assert cli.check_token()
+
+def test_params_mapping_error_one(testserver, cleandir):
+    """params_mapping"""
+    cli = JsonWspClient(testserver.url, services=['TransferService'])
+    try:
+        cli.secure_download(name=FILENAME).save_all(DOWN_PATH)
+        assert False
+    except JsonWspFault as error:
+        print(error.description)
+        assert True
+
+def test_params_mapping_error_two(testserver, cleandir):
+    """params_mapping"""
+    cli = JsonWspClient(testserver.url, services=['TransferService'])
+    try:
+        cli.secure_download(name=FILENAME, token='4321').save_all(DOWN_PATH)
+        assert False
+    except JsonWspFault as error:
+        print(error.description)
+        assert True
+
+def test_all(testserver):
+    """test all"""
+
+    # our event handler for file download monitoring.
+    def file_handler(event_name, value=0, max_value=0):
+        """file Handler"""
+        pct = value * float(max_value) / 100
+        print("{} {}%\r".format(event_name, pct), end='')
+
+    # silly objectify function
+    def objectify(response, **dummy_kwargs):
+        """objectify"""
+        response.objpart = type('ObjPart', (object, ), response.response_dict['result'])
+        return response
+
+
+    # out client
+    class MyClient(JsonWspClient):
+        """My Client"""
+        # we can specify some thing in the class creation
+        # we will download only so we will bind only the file.write event.
+        events = [('file.write', file_handler)]
+        # we will objectify the result.
+        process_response = [objectify]
+        # and map the token parma to the get_token method
+        params_mapping = {'token': 'get_token'}
+        user = None
+
+        def authenticate(self, username, password):
+            """Authenticate"""
+            self.user = self.auth(username=username, password=password).objpart
+
+        def get_token(self):
+            """get token"""
+            return self.user.token
+
+    # instantiate the client.
+    cli = MyClient(testserver.url, ['Authenticate', 'TransferService'])
+    # authenticate user.
+    cli.authenticate('username', 'password')
+    # donwload the file (automatically uses the user token as parameter)
+    cli.secure_download(name=FILENAME).save_all(DOWN_PATH)
+    assert filecmp.cmpfiles(RES_PATH, DOWN_PATH, FILENAME)
