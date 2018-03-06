@@ -6,13 +6,16 @@ Jsonwspservice :mod:`jsonwspclient.jsonwspservice`
 
 """
 # pylint: disable=relative-import
+import logging
 import types
+import requests
 import jsonwsputils as utils
+import jsonwspexceptions as excs
+log = logging.getLogger('jsonwspclient')
 
 
 class JsonWspService(object):
-
-    """Service"""
+    """Service."""
 
     def __init__(self, client, service_name):
         self.name = service_name
@@ -26,7 +29,7 @@ class JsonWspService(object):
         self._load_description()
 
     def list_methods(self):
-        """list_methods"""
+        """list_methods."""
         return self._methods
 
     def __getattr__(self, name):
@@ -34,28 +37,25 @@ class JsonWspService(object):
             return self._methods[name]
 
     def _set_new_method(self, method_name, params):
-        """ Set new method per service.  """
+        """Set new method per service."""
 
         def placeholder(self, **kwargs):
-            """ placeholder  """
-            for param in [
-                    p for p in params if p in self.client.params_mapping
-            ]:
-                par = getattr(self.client, self.client.params_mapping[param],
-                              '--nope--')
+            """placeholder."""
+            for param in [p for p in params if p in self.client.params_mapping]:
+                par = getattr(
+                    self.client, self.client.params_mapping[param], '--nope--')
                 if par != '--nope--':
                     if callable(par):
                         kwargs[param] = par()
                     else:
                         kwargs[param] = par
-                print str(kwargs)
             return self._call_method(method_name, **kwargs)
 
         self._methods[method_name] = types.MethodType(placeholder, self,
                                                       self.__class__)
 
     def _load_description(self):
-        """ Loads description for this service.  """
+        """Loads description for this service."""
         response = self.post(
             '/{}/jsonwsp/description'.format(self.name), method='GET')
         self.description = response.response_dict
@@ -67,9 +67,8 @@ class JsonWspService(object):
             self._set_new_method(method_name, params)
         self._trigger('service.description_loaded', service=self)
 
-
     def _method_info(self, method_name):
-        """Method info"""
+        """Method info."""
         minfo = self.description['methods'][method_name]
         params = minfo['params']
         mandatory_params = []
@@ -93,7 +92,7 @@ class JsonWspService(object):
             ret_info=minfo['ret_info'])
 
     def _call_method(self, method_name, **kwargs):
-        """Call method"""
+        """Call method."""
         attachment_map = {'cid_seq': 1, 'files': {}}
         utils.walk_args_dict(kwargs, attachment_map)
         if self.description_loaded:
@@ -109,18 +108,30 @@ class JsonWspService(object):
         data['args'] = kwargs
         self._trigger(
             'service.call_method.before', service=self, method=method_name,
-            attachment_map=attachment_map, **data)
-        if attachment_map['files']:
-            response = self.post_mp(self.url, data, attachment_map['files'])
+            attachment_map=attachment_map, **kwargs)
+        try:
+            if attachment_map['files']:
+                response = self.post_mp(
+                    self.url, data, attachment_map['files'])
+            else:
+                response = self.post(self.url, data)
+            response.raise_for_status()
+            response.raise_for_fault()
+        except excs.JsonWspFault as error:
+            log.exception(error)
+            raise
+        except requests.RequestException as error:
+            log.exception(error)
+            raise
         else:
-            response = self.post(self.url, data)
-        self._trigger(
-            'service.call_method.after', service=self, method=method_name,
-            attachment_map=attachment_map, **data)
-        for process_response in self.client.process_response:
-            try:
-                response = process_response(
-                    response, service=self, client=self.client)
-            except StandardError:
-                pass
+            self._trigger(
+                'service.call_method.after', service=self, method=method_name,
+                attachment_map=attachment_map, **kwargs)
+            for process_response in self.client.process_response:
+                try:
+                    response = process_response(
+                        response, service=self, client=self.client,
+                        method_name=method_name, **kwargs)
+                except StandardError:
+                    pass
         return response

@@ -9,6 +9,7 @@ import logging
 import tempfile
 import jsonwsputils as utils
 from jsonwspmultipart import MultiPartReader
+import jsonwspexceptions as excs
 log = logging.getLogger('jsonwspclient')
 
 
@@ -20,11 +21,14 @@ class JsonWspResponse(object):
         self._response = response
         self.attachments = {}
         self.__reader = None
+        self._raise_for_fault = False
         self._multipart = None
         self._boundary = utils.get_boundary(self.headers)
         self.is_multipart = True if self._boundary else False
         self.response_dict = {}
         self.length = int(self.headers.get('Content-Length', '0'))
+        self.has_fault = False
+        self.fault_code = None
         self._trigger = trigger
         self._process()
 
@@ -43,6 +47,14 @@ class JsonWspResponse(object):
             except ValueError as error:
                 log.debug('errore %s', error)
                 self.response_dict = {}
+        self._check_fault()
+
+    def _check_fault(self):
+        """Check fault"""
+        self.has_fault = self.response_dict.get('type') == "jsonwsp/fault"
+        if self.has_fault:
+            self.fault_code = self.response_dict['fault']['code']
+        
 
     def _get_attchments_id(self):
         """get info"""
@@ -98,6 +110,17 @@ class JsonWspResponse(object):
                 break
             filename = self.attachments[attach.att_id][name]
             attach.save(path, filename)
+
+    def raise_for_fault(self):
+        """raise for fault"""
+        self._raise_for_fault = True
+        if self.fault_code == 'server':
+            raise excs.ServerFault(response=self)
+        elif self.fault_code == 'client':
+            raise excs.ClientFault(response=self)
+        elif self.fault_code == 'incompatible':
+            raise excs.IncompatibleFault(response=self)
+
 
     def __del__(self):
         del self.__reader

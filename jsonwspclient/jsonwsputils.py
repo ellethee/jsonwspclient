@@ -25,8 +25,9 @@ _get_charset = re.compile(
     r'(?i)charset\s*=\s*(?P<charset>[-_.a-zA-Z0-9]+)').search
 log = logging.getLogger('jsonwspclient')
 
+
 def get_fileitem(path, data='data', name='name', mode='rb'):
-    """get fileitem"""
+    """get fileitem."""
     path = os.path.abspath(path)
     return {
         name: os.path.basename(path),
@@ -35,7 +36,7 @@ def get_fileitem(path, data='data', name='name', mode='rb'):
 
 
 def get_multipart(headers):
-    """return multipart"""
+    """return multipart."""
     multipart = _get_multipart(headers.get('Content-type', ''))
     if multipart:
         return multipart.group(1)
@@ -43,7 +44,7 @@ def get_multipart(headers):
 
 
 def get_boundary(headers):
-    """return boundary"""
+    """return boundary."""
     boundary = _get_boundary(headers.get('Content-type', ''))
     if boundary:
         return boundary.group(1)
@@ -51,7 +52,7 @@ def get_boundary(headers):
 
 
 def get_charset(headers):
-    """return charset"""
+    """return charset."""
     charset = _get_charset(headers.get('Content-type', ''))
     if charset:
         return charset.group(1)
@@ -59,7 +60,7 @@ def get_charset(headers):
 
 
 def check_attachment(items):
-    """check_attachment"""
+    """check_attachment."""
     res = {}
     if not isinstance(items, list):
         items = [items]
@@ -74,7 +75,7 @@ def check_attachment(items):
 
 
 def fix_attachment(val, attachment_map):
-    """Fix attachment"""
+    """Fix attachment."""
     if hasattr(val, 'read'):
         while True:
             cid = 'file{}'.format(attachment_map['cid_seq'])
@@ -93,7 +94,7 @@ def fix_attachment(val, attachment_map):
 
 
 def walk_args_dict(kwargs, attachment_map):
-    """Walk args"""
+    """Walk args."""
     for key, value in kwargs.items():
         if isinstance(value, tuple):
             kwargs[key] = list(value)
@@ -114,30 +115,30 @@ def walk_args_dict(kwargs, attachment_map):
 
 
 class Observer(object):
-    """Observer for events"""
+    """Observer for events."""
+
     def __init__(self, events):
         self._events = events
 
     def add(self, name, funct):
-        """add event"""
+        """add event."""
         if not (name, funct, ) in self._events:
             self._events.append((name, funct,))
 
     def remove(self, name, funct):
-        """remove event"""
+        """remove event."""
         if (name, funct, ) in self._events:
             self._events.remove((name, funct,))
 
     def trigger(self, event, **kwargs):
-        """Trigger"""
+        """Trigger."""
         for name, funct in self._events:
             if event.startswith(name) or name == '*':
                 funct(event, **kwargs)
 
 
 class FileWithCallBack(object):
-
-    """FileWithCallBack"""
+    """FileWithCallBack."""
 
     def __init__(self, path, callback, mode='rb', size=0):
         self._read_bytes = 0
@@ -150,17 +151,20 @@ class FileWithCallBack(object):
             self.seek(0, os.SEEK_END)
             self._total = self.tell() or size
             self.seek(0)
-        except StandardError:
+        except Exception:
             self._total = size
         self._callback = callback
-        self._callback('file.init', fobj=self._file)
+        self._callback(
+            'file.init', fobj=self._file, value=0, max_value=self._total)
 
     def close(self):
-        """Close"""
+        """Close."""
         try:
-            self._callback('file.close', value=self._write_bytes, max_value=self._total)
+            self._callback('file.close', fobj=self._file,
+                           value=self._write_bytes, max_value=self._total)
             self._file.close()
-            self._callback('file.closed', value=self._write_bytes, max_value=self._total)
+            self._callback('file.closed', fobj=self._file,
+                           value=self._write_bytes, max_value=self._total)
         except IOError:
             pass
 
@@ -177,14 +181,16 @@ class FileWithCallBack(object):
         self.close()
 
     def write(self, data):
-        """write"""
+        """write."""
         self._file.write(data)
         self._write_bytes += len(data)
-        self._callback('file.write', value=self._write_bytes, max_value=self._total)
+        self._callback('file.write', fobj=self._file,
+                       value=self._write_bytes, max_value=self._total)
 
     def read(self, size):
-        """read"""
+        """read."""
         data = self._file.read(size)
         self._read_bytes += len(data or '')
-        self._callback('file.read', value=self._read_bytes, max_value=self._total)
+        self._callback('file.read', fobj=self._file,
+                       value=self._read_bytes, max_value=self._total)
         return data
