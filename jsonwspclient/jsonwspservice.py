@@ -7,7 +7,6 @@ Jsonwspservice :mod:`jsonwspclient.jsonwspservice`
 """
 # pylint: disable=relative-import
 import logging
-import types
 import requests
 from . import jsonwsputils as utils
 from . import jsonwspexceptions as excs
@@ -51,8 +50,8 @@ class JsonWspService(object):
                         kwargs[param] = par
             return self._call_method(method_name, **kwargs)
 
-        self._methods[method_name] = types.MethodType(placeholder, self,
-                                                      self.__class__)
+        self._methods[method_name] = utils.make_method(placeholder, self,
+                                                       self.__class__)
 
     def _load_description(self):
         """Loads description for this service."""

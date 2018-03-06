@@ -10,13 +10,20 @@ import io
 import os
 import re
 import sys
+import types
 import logging
 if sys.version_info[0] == 2:
     PortableBytes = str
     PortableString = unicode
+    def make_method(funct, instance, cls):
+        """Make method"""
+        return types.MethodType(funct, instance, cls)
 elif sys.version_info[0] >= 3:
     PortableBytes = bytes
     PortableString = str
+    def make_method(funct, instance, _cls):
+        """Make method"""
+        return types.MethodType(funct, instance)
 PORTABLE_STRING_TYPES = [PortableString, PortableBytes]
 has_attachments = re.compile(r'(?i)^cid:(.+)$').match
 _get_multipart = re.compile(r'(?i)multipart/(?P<multipart>[^; ]+)').search
