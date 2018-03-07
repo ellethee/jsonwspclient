@@ -19,7 +19,7 @@ __version__ = '1.0.3'
 
 
 class JsonWspClient(object):
-    """JsonWsp Client
+    """JsonWsp Client.
 
     The JSON-WSP Client class
 
@@ -33,6 +33,9 @@ class JsonWspClient(object):
             and/or modify responses before they are returned.
         params_mapping (dict): Dictionary with mapping for client attributes or
             methods to service command parmaters.
+        auth (any): Authentication according with
+            `Requests Authentication <http://docs.python-requests.org/en/master/user/authentication/#authentication>`_
+            in most case a simple tuple with **username** and **password** should be enough.
         proxies (dict): Dictionary mapping protocol to the URL of the proxy (see
             `Requests proxies <http://docs.python-requests.org/en/master/user/advanced/#proxies>`_)
         verify (bool, str): Either a boolean, in which case it controls whether we
@@ -52,10 +55,12 @@ class JsonWspClient(object):
     """([function]): list of functions that can process
             and/or modify responses before they are returned.
     """
+
     def __init__(
             self, url, services, headers=None, events=None, processors=None,
-            params_mapping=None, proxies=None, verify=False, **kwargs):
+            params_mapping=None, auth=None, proxies=None, verify=False, **kwargs):
         self.session = requests.Session()
+        self.session.auth = auth
         self.url = url
         self.processors = processors or self.processors
         self._observer = utils.Observer(events or self.events)
@@ -82,18 +87,18 @@ class JsonWspClient(object):
             self._load_service(service)
 
     def add_events(self, *events):
-        """Add events"""
+        """Add events."""
         for event, funct in events:
             self._observer.add(event, funct)
 
     def remove_events(self, *events):
-        """Remove events"""
+        """Remove events."""
         for event, funct in events:
             self._observer.remove(event, funct)
 
     @property
     def service(self, name):
-        """return service
+        """return service.
 
         Args:
             name (str): name of the service to retrieve
@@ -105,7 +110,7 @@ class JsonWspClient(object):
 
     @property
     def method(self, name):
-        """return method
+        """return method.
 
         Args:
             name (str): name of the service to retrieve
@@ -116,7 +121,7 @@ class JsonWspClient(object):
         return self._methods.get(name)
 
     def post(self, path, data=None, method='POST'):
-        """Post a request
+        """Post a request.
 
         Args:
             path (str): Path relative to base url of the client instance.
@@ -140,7 +145,7 @@ class JsonWspClient(object):
         return response
 
     def post_mp(self, path, data=None, attachs=None, method="POST"):
-        """Post a multipart requests
+        """Post a multipart requests.
 
         Args:
             path (str): Path relative to base url of the client instance.
@@ -172,11 +177,11 @@ class JsonWspClient(object):
         return response
 
     def close(self):
-        """Close"""
+        """Close."""
         self.session.close()
 
     def _load_service(self, service):
-        """Load service"""
+        """Load service."""
         srv = JsonWspService(self, service)
         self._services[service.lower()] = srv
         for method_name, method in srv.list_methods().items():
