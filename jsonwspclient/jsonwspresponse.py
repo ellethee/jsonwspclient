@@ -12,22 +12,35 @@ log = logging.getLogger('jsonwspclient')
 
 
 class JsonWspResponse(object):
-    """Json Response (wrapper for `requests Response object <http://docs
-    .python-requests.org/en/master/api/#requests.Response>`_)"""
+    """JsonWspResponse (wrapper for `requests Response object <http://docs
+    .python-requests.org/en/master/api/#requests.Response>`_) is not meant
+    to be instantiate manually but only as response from :any:`JsonWspClient`
+    requests.
+    """
 
     def __init__(self, response, trigger):
-        self._response = response
-        self.attachments = {}
         self.__reader = None
-        self._raise_for_fault = False
-        self._multipart = None
         self._boundary = utils.get_boundary(self.headers)
-        self.is_multipart = True if self._boundary else False
-        self.response_dict = {}
-        self.length = int(self.headers.get('Content-Length', '0'))
-        self.has_fault = False
-        self.fault_code = None
+        self._multipart = None
+        self._raise_for_fault = False
+        self._response = response
         self._trigger = trigger
+        self.attachments = {}
+        """(dict): Attachments dictionary, not really useful."""
+        self.fault = {}
+        """(dict): Fault dictionary if response has fault."""
+        self.fault_code = None
+        """(str): Fault code if response has fault."""
+        self.has_fault = False
+        """(bool): True if response has fault."""
+        self.is_multipart = True if self._boundary else False
+        """(bool): True if response is multipart."""
+        self.length = int(self.headers.get('Content-Length', '0'))
+        """(int): response content length"""
+        self.response_dict = {}
+        """(dict): JSON part of the response."""
+        self.result = {}
+        """(dict,list): **data** of the JSON part of the response."""
         self._process()
 
     def __getattr__(self, name):
@@ -38,7 +51,6 @@ class JsonWspResponse(object):
         if self._boundary:
             self.__reader = self._get_reader()
             self.response_dict = self.next()
-            self._get_attchments_id()
         else:
             try:
                 self.response_dict = self._response.json()
@@ -46,18 +58,21 @@ class JsonWspResponse(object):
                 log.debug('errore %s', error)
                 self.response_dict = {}
         self._check_fault()
+        self._get_attchments_id()
 
     def _check_fault(self):
         """Check fault."""
         self.has_fault = self.response_dict.get('type') == "jsonwsp/fault"
         if self.has_fault:
+            self.fault = self.response_dict['fault']
             self.fault_code = self.response_dict['fault']['code']
+        else:
+            self.result = self.response_dict.get('result', {})
 
     def _get_attchments_id(self):
         """get info."""
-        res = self.response_dict.get('result')
-        if isinstance(res, (dict, list)):
-            self.attachments.update(utils.check_attachment(res))
+        if self.is_multipart and isinstance(self.result, (dict, list)):
+            self.attachments.update(utils.check_attachment(self.result))
 
     def _get_reader(self):
         """get all."""
@@ -95,27 +110,36 @@ class JsonWspResponse(object):
         """
         return next(self._reader)
 
-    def save_all(self, path, name='name'):
+    def save_all(self, path, name='name', overwrite=True):
         """Save all the attachments ad once.
 
-        Args:     path (str): Path where to save.     name (str): key
-        with which the file name is specified in the dictionary.
+        Args:
+            path (str): Path where to save.
+            name (str, optional): key with which the file name is specified in the
+                dictionary (default ``name``).
+            overwrite (bool, optional): overwrite the file if exists (defautl True).
         """
         for attach in self._reader:
             if not attach:
                 break
             filename = self.attachments[attach.att_id][name]
-            attach.save(path, filename)
+            attach.save(path, filename=filename, overwrite=overwrite)
 
     def raise_for_fault(self):
-        """raise for fault."""
-        self._raise_for_fault = True
+        """Reise error if needed else return self."""
         if self.fault_code == 'server':
             raise excs.ServerFault(response=self)
         elif self.fault_code == 'client':
             raise excs.ClientFault(response=self)
         elif self.fault_code == 'incompatible':
             raise excs.IncompatibleFault(response=self)
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
     def __del__(self):
         del self.__reader
