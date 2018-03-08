@@ -33,6 +33,7 @@ class JsonWspClient(object):
             and/or modify responses before they are returned.
         params_mapping (dict): Dictionary with mapping for client attributes or
             methods to service command parmaters.
+        raise_for_fault (bool): Automatically raise Exceptions on JSON-WSP response faults.
         auth (any): Authentication according with
             `Requests Authentication <http://docs.python-requests.org/en/master/user/authentication/#authentication>`_
             in most case a simple tuple with **username** and **password** should be enough.
@@ -58,11 +59,13 @@ class JsonWspClient(object):
 
     def __init__(
             self, url, services, headers=None, events=None, processors=None,
-            params_mapping=None, auth=None, proxies=None, verify=False, **kwargs):
+            params_mapping=None, raise_for_fault=False, auth=None, proxies=None,
+            verify=False, **kwargs):
         self.session = requests.Session()
         self.session.auth = auth
         self.url = url
         self.processors = processors or self.processors
+        self._raise_for_fault = raise_for_fault
         self._observer = utils.Observer(events or self.events)
         version, release = __version__.split('.', 1)
         self.session.proxies.update(proxies or {})

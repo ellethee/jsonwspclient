@@ -101,6 +101,7 @@ class JsonWspService(object):
         data = {'methodname': method_name}
         data['mirror'] = kwargs.pop('mirror', None)
         data['args'] = kwargs
+        raise_for_fault = kwargs.pop('raise_for_fault', False)
         self._trigger(
             'service.call_method.before', service=self, method=method_name,
             attachment_map=attachment_map, **kwargs)
@@ -111,7 +112,8 @@ class JsonWspService(object):
             else:
                 response = self._post(self.url, data)
             response.raise_for_status()
-            response.raise_for_fault()
+            if self._client._raise_for_fault or raise_for_fault:
+                response.raise_for_fault()
         except excs.JsonWspFault as error:
             log.exception(error)
             raise
