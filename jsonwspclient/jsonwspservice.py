@@ -8,6 +8,7 @@ Jsonwspservice :mod:`jsonwspclient.jsonwspservice`
 # pylint: disable=relative-import
 import logging
 import requests
+from six import string_types
 from . import jsonwsputils as utils
 from . import jsonwspexceptions as excs
 log = logging.getLogger('jsonwspclient')
@@ -40,15 +41,20 @@ class JsonWspService(object):
         def placeholder(self, **kwargs):
             """placeholder."""
             for param in [p for p in params if p in self._client.params_mapping]:
-                par = getattr(
-                    self._client, self._client.params_mapping[param], '--nope--')
-                if par != '--nope--':
-                    if callable(par):
-                        kwargs[param] = par()
-                    else:
-                        kwargs[param] = par
+                item = self._client.params_mapping[param]
+                if isinstance(item, string_types):
+                    try:
+                        # we use __getattribute__ or it will search the services
+                        # methods too.
+                        item = object.__getattribute__(self._client, item)
+                    except AttributeError:
+                        pass
+                if callable(item):
+                    kwargs[param] = item(method_name=method_name, **kwargs)
+                else:
+                    kwargs[param] = item
+                log.debug("Param %s: %s", param, kwargs[param])
             return self._call_method(method_name, **kwargs)
-
         self._methods[method_name] = utils.make_method(placeholder, self, self.__class__)
         self._methods[method_name].__dict__['info'] = self._method_info(method_name)
         self._methods[method_name].__dict__.update(self._methods[method_name].__dict__['info'])
@@ -58,6 +64,7 @@ class JsonWspService(object):
         """Loads description for this service."""
         response = self._post(
             '/{}/jsonwsp/description'.format(self.name), method='GET')
+        response.raise_for_status()
         self._description = response.response_dict
         self._method_names = self._description['methods'].keys()
         self._types = self._description['types'].keys()
@@ -65,6 +72,7 @@ class JsonWspService(object):
         for method_name, method in self._description['methods'].items():
             params = method['params'].keys()
             self._set_new_method(method_name, params)
+        self._description_loaded = True
         self._trigger('service.description_loaded', service=self)
 
     def _method_info(self, method_name):
@@ -97,7 +105,12 @@ class JsonWspService(object):
         utils.walk_args_dict(kwargs, attachment_map)
         if self._description_loaded:
             if not set(self._methods[method_name].mandatory).issubset(kwargs):
-                return -1
+                raise ValueError("Missing parameters: {}".format(
+                    ", ".join(set(self._methods[method_name].mandatory) - set(kwargs))
+                ))
+            for par, info in self._methods[method_name].info['params_info'].items():
+                if not utils.check_type(kwargs[par], info['type']):
+                    raise TypeError("Param {} must be {}".format(par, info['type']))
         data = {'methodname': method_name}
         data['mirror'] = kwargs.pop('mirror', None)
         data['args'] = kwargs
