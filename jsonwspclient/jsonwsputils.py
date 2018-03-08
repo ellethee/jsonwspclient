@@ -12,19 +12,15 @@ import re
 import sys
 import types
 import logging
+from six import string_types
 if sys.version_info[0] == 2:
-    PortableBytes = str
-    PortableString = unicode
     def make_method(funct, instance, cls):
         """Make method"""
         return types.MethodType(funct, instance, cls)
 elif sys.version_info[0] >= 3:
-    PortableBytes = bytes
-    PortableString = str
     def make_method(funct, instance, _cls):
         """Make method"""
         return types.MethodType(funct, instance)
-PORTABLE_STRING_TYPES = [PortableString, PortableBytes]
 has_attachments = re.compile(r'(?i)^cid:(.+)$').match
 _get_multipart = re.compile(r'(?i)multipart/(?P<multipart>[^; ]+)').search
 _get_boundary = re.compile(r'(?i)boundary=(?P<boundary>[^; ]+)').search
@@ -73,7 +69,7 @@ def check_attachment(items):
         items = [items]
     for item in items:
         for value in item.values():
-            if not isinstance(value, PortableString):
+            if not isinstance(value, string_types):
                 continue
             isatt = has_attachments(value)
             if isatt:
@@ -92,7 +88,7 @@ def fix_attachment(val, attachment_map):
         attachment_map['files'][cid] = val
         return 'cid:%s' % cid
 
-    if (isinstance(val, tuple(PORTABLE_STRING_TYPES)) and val and
+    if (isinstance(val, string_types) and val and
             val[0] == '@' and os.path.isfile(val[1:])):
         cid = os.path.normpath(val[1:])
         if cid not in attachment_map:
