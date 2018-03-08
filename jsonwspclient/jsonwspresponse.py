@@ -19,11 +19,11 @@ class JsonWspResponse(object):
     """
 
     def __init__(self, response, trigger):
+        self._response = response
         self.__reader = None
         self._boundary = utils.get_boundary(self.headers)
         self._multipart = None
         self._raise_for_fault = False
-        self._response = response
         self._trigger = trigger
         self.attachments = {}
         """(dict): Attachments dictionary, not really useful."""
