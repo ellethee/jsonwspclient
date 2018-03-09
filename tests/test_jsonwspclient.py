@@ -92,7 +92,7 @@ def test_params_mapping_two(testserver):
             res = self.get_user()
             self.user = res.response_dict['result']
 
-        def token(self):
+        def token(self, **kwargs):
             """token param"""
             return self.user.get('token', '')
     cli = MyClient(testserver.url, services=['Authenticate'])
@@ -103,7 +103,7 @@ def test_params_mapping_error_one(testserver, cleandir):
     """params_mapping"""
     cli = JsonWspClient(testserver.url, services=['TransferService'])
     try:
-        cli.secure_download(name=FILENAME).save_all(DOWN_PATH)
+        cli.secure_download(raise_for_fault=True, name=FILENAME).save_all(DOWN_PATH)
         assert False
     except JsonWspFault as error:
         print(error.description)
@@ -111,7 +111,7 @@ def test_params_mapping_error_one(testserver, cleandir):
 
 def test_params_mapping_error_two(testserver, cleandir):
     """params_mapping"""
-    cli = JsonWspClient(testserver.url, services=['TransferService'])
+    cli = JsonWspClient(testserver.url, raise_for_fault=True, services=['TransferService'])
     try:
         cli.secure_download(name=FILENAME, token='4321').save_all(DOWN_PATH)
         assert False
@@ -151,7 +151,7 @@ def test_all(testserver):
             """Authenticate"""
             self.user = self.auth(username=username, password=password).objpart
 
-        def get_token(self):
+        def get_token(self, **kwargs):
             """get token"""
             return self.user.token
 
