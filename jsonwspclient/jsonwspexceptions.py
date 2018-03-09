@@ -36,6 +36,7 @@ class JsonWspFault(Exception):
             self.filename = self.fault['filename']
             self.lineno = self.fault['lineno']
             self.hint = self.fault.get('hint')
+            args = (self.code, self.description) + args
         super(JsonWspFault, self).__init__(*args)
 
 

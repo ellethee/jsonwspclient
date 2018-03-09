@@ -106,7 +106,7 @@ def test_params_mapping_error_one(testserver, cleandir):
         cli.secure_download(raise_for_fault=True, name=FILENAME).save_all(DOWN_PATH)
         assert False
     except JsonWspFault as error:
-        print(error.description)
+        print(error)
         assert True
 
 def test_params_mapping_error_two(testserver, cleandir):
@@ -116,7 +116,7 @@ def test_params_mapping_error_two(testserver, cleandir):
         cli.secure_download(name=FILENAME, token='4321').save_all(DOWN_PATH)
         assert False
     except JsonWspFault as error:
-        print(error.description)
+        print(error)
         assert True
 
 def test_all(testserver):
