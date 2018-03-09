@@ -42,7 +42,7 @@ class JsonWspAttachmentMeta(type):
             return other.startswith('cid:')
         return isinstance(JsonWspAttachment, other)
 
-class JsonWspAttachment(object):
+class JsonWspAttachment(six.with_metaclass(JsonWspAttachmentMeta)):
     """Class for the attachments
 
     Args:
@@ -54,8 +54,6 @@ class JsonWspAttachment(object):
         descriptor (any): File descriptor.
         path (str): Temporary file path.
     """
-
-    __metaclass__ = JsonWspAttachmentMeta
 
     def __init__(self, index=0):
         self.att_id = ''
