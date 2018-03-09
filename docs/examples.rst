@@ -3,8 +3,10 @@ Examples
 ========
 Some useful example.
 
+.. _multiple_services_quick_access_example:
+
 Multiple services and quick method access
-=================================================
+=========================================
 
 .. code-block:: python
 
@@ -25,21 +27,38 @@ Multiple services and quick method access
 
 Event handling
 ==============
+Very simple download monitoring.
 
 .. code-block:: python
 
     from __future__ import print_function # python 2
     from jsonwspclient import JsonWspClient
 
+    # out simple event handler.
     def download_event(event_name, fobj, value, max_value):
         """Print event"""
         # print the percentage
         pct = value * float(max_value) / 100
         print("{}%\r".format(pct), end='')
-   
+ 
+    # instantiate out client passing the **download_event** function as handler.
+    # for the file.read event.
     cli = JsonWspClient('http://mysite.com', services=['TransferService'], events=[('file.read', download_event)])
     cli.donwload(name='testfile.txt').save_all('/tmp') 
 
+Deprecation warning on old part in request URL.
+
+.. code-block:: python
+
+    from jsonwspclient import JsonWspClient
+
+    def before_post(event_name, path='', **kwargs):
+        """warning"""
+        if 'old_request_path' in path:
+            raise DeprecationWarning("old_request_path is deprecated, use new_requst_path instead")
+   
+    cli = JsonWspClient('http://mysite.com', services=['TransferService'], events=[('client.post.before', before_post)])
+    cli.donwload(name='testfile.txt').save_all('/tmp') 
 
 See :ref:`events_handling`.
 
@@ -85,6 +104,7 @@ See :ref:`response_processing`.
 
 Parameters mapping
 ==================
+Simple reference to client's attribute mapping.
 
 .. code-block:: python
 
@@ -100,7 +120,33 @@ Parameters mapping
     # notice we don't neet to pass the token argument because now is mapped to 
     # the client attribute **token** and if the download method need it it will
     # be passed automatically.
-    cli.donwload(name='testfile.txt').save_all('/tmp')
+    cli.secure_download(name='testfile.txt').save_all('/tmp')
+
+More simple *direct value* mapping
+
+.. code-block:: python
+
+    from jsonwspclient import JsonWspClient
+
+    # direct param mapping *token* param wil will pass as '1234' value.
+    cli = JsonWspClient('http://mysite.com', ['TransferService'], params_mapping={'token': '1234'})
+    cli.secure_download(name='testfile.txt').save_all('/tmp')
+
+.. code-block:: python
+
+    from jsonwspclient import JsonWspClient
+    def get_token(method_name, **kwargs):
+        """conditional token"""
+        if method_name == 'get_user':
+            return 'empty'
+        return '12345'
+    cli = JsonWspClient(
+        'http://mysite.com', ['Authenticate', 'TransferService'], 
+        params_mapping={'token': get_token})
+    cli.token = cli.get_user().result['token']
+    cli.donwload(name="testfile.txt").save_all('/tmp')
+
+
 
 
 All together now (with subclassing)

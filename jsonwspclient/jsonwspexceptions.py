@@ -5,10 +5,11 @@ Jsonwspexceptions :mod:`jsonwspclient.jsonwspexceptions`
 ========================================================
 
 """
+class JsonWspException(Exception):
+    """Base Exception"""
+    pass
 
-
-class JsonWspFault(Exception):
-
+class JsonWspFault(JsonWspException):
     """Base exception."""
     fault = {}
     code = ''
@@ -55,6 +56,6 @@ class IncompatibleFault(JsonWspFault):
     pass
 
 
-class ParamsError(JsonWspFault):
+class ParamsError(JsonWspException):
     """Params Errror."""
     pass

@@ -91,6 +91,23 @@ and the methods :meth:`next() <jsonwspclient.jsonwspresponse.JsonWspResponse.nex
 
 See :ref:`response_access_example` examples.
 
+.. _context_manager:
+
+Context manager
+===============
+Both :any:`JsonWspClient` and :any:`JsonWspResponse` supports a basic Context manager protocol.
+So you can use the **with** Statement.
+
+.. code-block:: python
+
+    with JsonWspClient('http://mysite.com', services['Authenticate', 'TransferService']) as cli:
+        with cli.auth(username="name", password="password") as res:
+            token = cli.result['token']
+        with cli.secure_download(toke=token, name='testfile.txt') as dres:
+            if not dres.has_fault:
+                dres.save_all('/tmp')
+
+
 .. _events_handling:
 
 Events handling
@@ -229,3 +246,18 @@ See :ref:`params_mapping_example` example.
 
 Fault handling
 ==============
+:any:`JsonWspClient` raises automatically response's exceptions (`raise_for_status <http://docs.python-requests.org/en/master/user/quickstart/#errors-and-exceptions>`_) and :any:`jsonwspexceptions.ParamsError`.
+However, JSON-WSP errors are normally dealt with silently and are managed by 
+checking the response :attr:`has_fault` property. In order for the :any:`JsonWspClient` to 
+raise an exception in case of response fault, you must pass the parameter 
+``raise_for_fault=True`` to the client instance or service method. 
+Or use the :meth:`raise_for_fault` method of the response BEFORE using it.
+
+See :ref:`fault_handling_example` example.
+
+.. note::
+
+    in case of parameter ``raise_for_fault=True`` the response processors are ignored in case of error. 
+    While with the :meth:`raise_for_fault` method they are processed BEFORE raising the exception.
+    So, your response processor, must consider it
+
