@@ -119,6 +119,16 @@ def test_params_mapping_error_two(testserver, cleandir):
         print(error)
         assert True
 
+def test_params_mapping_error_treee(testserver, cleandir):
+    """params_mapping"""
+    cli = JsonWspClient(testserver.url, raise_for_fault=True, services=['TransferService'])
+    try:
+        cli.secure_download(name=FILENAME, token=4321).save_all(DOWN_PATH)
+        assert False
+    except JsonWspFault as error:
+        print(error)
+        assert True
+
 def test_all(testserver):
     """test all"""
 
