@@ -10,6 +10,8 @@ import logging
 import requests
 from six import string_types
 from . import jsonwsputils as utils
+from .jsonwsputils import JsonWspNone
+from .jsonwspmultipart import JSONTYPES
 from . import jsonwspexceptions as excs
 log = logging.getLogger('jsonwspclient')
 
@@ -35,7 +37,7 @@ class JsonWspService(object):
         if not name.startswith('_'):
             return self._methods[name]
 
-    def _set_new_method(self, method_name, params):
+    def _set_new_method(self, name, params):
         """Set new method per service."""
 
         def placeholder(self, **kwargs):
@@ -50,15 +52,14 @@ class JsonWspService(object):
                     except AttributeError:
                         pass
                 if callable(item):
-                    kwargs[param] = item(method_name=method_name, **kwargs)
+                    kwargs[param] = item(name=name, **kwargs)
                 else:
                     kwargs[param] = item
                 log.debug("Param %s: %s", param, kwargs[param])
-            return self._call_method(method_name, **kwargs)
-        self._methods[method_name] = utils.make_method(placeholder, self, self.__class__)
-        self._methods[method_name].__dict__['info'] = self._method_info(method_name)
-        self._methods[method_name].__dict__.update(self._methods[method_name].__dict__['info'])
-
+            return self._call_method(name, **kwargs)
+        self._methods[name] = utils.make_method(placeholder, self, self.__class__)
+        self._methods[name].__dict__['info'] = self._method_info(name)
+        self._methods[name].__dict__.update(self._methods[name].__dict__['info'])
 
     def _load_description(self):
         """Loads description for this service."""
@@ -99,6 +100,32 @@ class JsonWspService(object):
             doc_lines=minfo['doc_lines'],
             ret_info=minfo['ret_info'])
 
+    def _check_param(self, name, value, ptype):
+        """Check param"""
+        cls = JSONTYPES.get(ptype)
+        if cls and not isinstance(value, cls):
+            raise TypeError("Param {} must be {}".format(name, ptype))
+
+        def inside_ckeck(lcls, iname=None, itype=None):
+            """Inside check"""
+            if isinstance(lcls, (list, tuple)):
+                for item in lcls:
+                    inside_ckeck(item)
+            elif isinstance(lcls, dict):
+                for cname, ctype in lcls.items():
+                    ctype = ctype['type']
+                    ltype = JSONTYPES.get(ctype)
+                    lvalue = value.get(cname)
+                    inside_ckeck(lvalue, cname, ltype)
+            else:
+                if not isinstance(lcls, itype):
+                    raise TypeError("Param {} must be {}".format(iname, itype))
+        if cls is None:
+            cls = self._description['types'].get(ptype)
+            if not cls:
+                raise TypeError('Invalid param type {} {}'.format(name, ptype))
+            inside_ckeck(cls)
+
     def _call_method(self, method_name, **kwargs):
         """Call method."""
         attachment_map = {'cid_seq': 1, 'files': {}}
@@ -106,11 +133,11 @@ class JsonWspService(object):
         if self._description_loaded:
             if not set(self._methods[method_name].mandatory).issubset(kwargs):
                 raise ValueError("Missing parameters: {}".format(
-                    ", ".join(set(self._methods[method_name].mandatory) - set(kwargs))
+                    ", ".join(
+                        set(self._methods[method_name].mandatory) - set(kwargs))
                 ))
             for par, info in self._methods[method_name].info['params_info'].items():
-                if not utils.check_type(kwargs[par], info['type']):
-                    raise TypeError("Param {} must be {}".format(par, info['type']))
+                self._check_param(par, kwargs[par], info['type'])
         data = {'methodname': method_name}
         data['mirror'] = kwargs.pop('mirror', None)
         data['args'] = kwargs

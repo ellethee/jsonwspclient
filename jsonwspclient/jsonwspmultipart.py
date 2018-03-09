@@ -16,6 +16,7 @@ import tempfile
 import time
 from requests.structures import CaseInsensitiveDict
 import six
+from six import string_types, integer_types
 from . import jsonwsputils as utils
 log = logging.getLogger('jsonwspclient')
 SPLIT = b'(?m)--<b>\n|\n--<b>\n|\n--<b>--|--<b>\r\n|\r\n--<b>\r\n|\r\n--<b>--'
@@ -34,6 +35,13 @@ def stringify_headers(headers, encoding='UTF-8'):
         for k, v in headers.items()) + HDFIL2
 
 
+class JsonWspAttachmentMeta(type):
+    """Meta for instance check"""
+    def __instancecheck__(cls, other):
+        if isinstance(other, six.string_types):
+            return other.startswith('cid:')
+        return isinstance(JsonWspAttachment, other)
+
 class JsonWspAttachment(object):
 
     """Class for the attachments"""
@@ -44,7 +52,8 @@ class JsonWspAttachment(object):
     headers = None
     index = 0
     size = 0
-
+    __metaclass__ = JsonWspAttachmentMeta
+    
     def __init__(self, index=0):
         self.index = index
         self.headers = CaseInsensitiveDict()
@@ -318,3 +327,13 @@ class MultiPartWriter(object):
     def close(self):
         """Close"""
         pass
+
+JSONTYPES = {
+    'number': integer_types,
+    'string': string_types,
+    'boolean': bool,
+    'float': float,
+    'object': dict,
+    'array': (list, tuple,),
+    'attachment': JsonWspAttachment
+}

@@ -21,15 +21,6 @@ elif sys.version_info[0] >= 3:
     def make_method(funct, instance, _cls):
         """Make method"""
         return types.MethodType(funct, instance)
-JSONTYPES = {
-    'number': integer_types,
-    'string': string_types,
-    'boolean': bool,
-    'float': float,
-    'object': dict,
-    'array': (list, tuple,),
-    # attachment: 'attachment'
-}
 has_attachments = re.compile(r'(?i)^cid:(.+)$').match
 _get_multipart = re.compile(r'(?i)multipart/(?P<multipart>[^; ]+)').search
 _get_boundary = re.compile(r'(?i)boundary=(?P<boundary>[^; ]+)').search
@@ -37,11 +28,6 @@ _get_charset = re.compile(
     r'(?i)charset\s*=\s*(?P<charset>[-_.a-zA-Z0-9]+)').search
 log = logging.getLogger('jsonwspclient')
 
-
-def check_type(obj, name):
-    """Check json type"""
-    print("Parameter", name)
-    return isinstance(obj, JSONTYPES.get(name, None))
 
 def get_fileitem(path, data='data', name='name', mode='rb'):
     """get fileitem."""
