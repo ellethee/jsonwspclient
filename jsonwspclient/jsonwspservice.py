@@ -36,7 +36,7 @@ class JsonWspService(object):
         if not name.startswith('_'):
             return self._methods[name]
 
-    def _set_new_method(self, name, params):
+    def _set_new_method(self, method_name, params):
         """Set new method per service."""
 
         def placeholder(self, **kwargs):
@@ -51,14 +51,14 @@ class JsonWspService(object):
                     except AttributeError:
                         pass
                 if callable(item):
-                    kwargs[param] = item(name=name, **kwargs)
+                    kwargs[param] = item(method_name=method_name, **kwargs)
                 else:
                     kwargs[param] = item
                 log.debug("Param %s: %s", param, kwargs[param])
-            return self._call_method(name, **kwargs)
-        self._methods[name] = utils.make_method(placeholder, self, self.__class__)
-        self._methods[name].__dict__['info'] = self._method_info(name)
-        self._methods[name].__dict__.update(self._methods[name].__dict__['info'])
+            return self._call_method(method_name, **kwargs)
+        self._methods[method_name] = utils.make_method(placeholder, self, self.__class__)
+        self._methods[method_name].__dict__['info'] = self._method_info(method_name)
+        self._methods[method_name].__dict__.update(self._methods[method_name].__dict__['info'])
 
     def _load_description(self):
         """Loads description for this service."""
