@@ -4,9 +4,13 @@ Features
 
 Multiple services
 =================
-You can load multiple service *descriptions* for a single :class:`JsonWspClient` instance.
+You can load multiple service *descriptions* for a single :any:`JsonWspClient` instance.
 
 So will be more simple make services interact.
+
+.. code-block:: python
+
+    cli = JsonWspClient(testserver.url, services=['Authenticate', 'TransferService'])
 
 
 Quick service method access
@@ -32,20 +36,67 @@ Obviously you can access to services and relative methods too (services name wil
 
     cli = JsonWspClient(testserver.url, services=['Authenticate', 'TransferService'])
 
-    cli.authenticate.auth()
-    cli.transferservice.methods
-    cli.upload(...)
+    cli.authenticate.auth(...)
+    cli.transferservice.download(...)
+    cli.transferservice.upload(...)
 
+.. note::
 
+    All service methos can accept the ``raise_for_fault`` parameter which force the response 
+    to raise an Exception in case of JSON-WSP fault.
 
+Service methods info
+====================
+Another thing that could be useful is the method's **info attributes** and **info dictionary**.
 
+**info attributes** are:
+
+    - doc_lines: list of string with doc lines. 
+    - mandatory: list of mandatory parameter names.
+    - method_name: string with the method name.                
+    - optional: list of optional parameters.                            
+    - params_info: dictionary with parameters and relative info. 
+    - params_order: list with parameters order.
+
+And the **info** attribute is a dictionary with all the above information.
+
+.. code-block:: python
+
+    cli = JsonWspClient(testserver.url, services=['Authenticate'])
+
+    print(cli.auth.mandatory)
+
+    ['username', 'password']
+
+.. _response_access:
+
+Response access:
+================
+Every service method call return a :any:`JsonWspResponse` object which is a wrapper for 
+the `requests.Reponse object <http://docs.python-requests.org/en/master/api/#requests.Response>`_.
+So you can have all the response things plus some specific features.
+
+The :any:`JsonWspResponse` works in two ways:
+
+    - Simple response.
+    - Multi part response.
+
+When the call to a service method return a simple JSON response **JsonWspResponse** behaves as *simple response*
+ad you can access only to the :attr:`response_dict` and the :meth:`result` attributes which are *interesting*.
+
+When the called method return a *multipart/related* response **JsonWspResponse** behaves as *multi part response*
+and the methods :meth:`next() <jsonwspclient.jsonwspresponse.JsonWspResponse.next>`
+:meth:`read_all() <jsonwspclient.jsonwspresponse.JsonWspResponse>` and 
+:meth:`save_all() <jsonwspclient.jsonwspresponse.JsonWspResponse>` became usable to access the attachments. 
+
+See :ref:`response_access_example` examples.
 
 .. _events_handling:
 
 Events handling
 ===============
-**JsonWspClient** handle these events wich. Is possible to group events simpy by 
-specify only te first part of the event name (it uses the `startwith` to check the event name).
+**JsonWspClient** handle these events which. Is possible to group events simply by 
+specify only the first part of the event name (it uses the `startwith` to check the event name).
 Or you can process all events using the `*` char instead of the event name.
 
 So you can group events using something like ``('file.', file_handler)`` or ``('client.post', mypost)``.
@@ -53,30 +104,35 @@ Or all events with ``('*', all_events)``.
 
 See :ref:`events_handling_example` example.
 
+.. note::
+
+    For all event callbacks only the event_name is mandatory all the other 
+    parameters are passed as optional keyword arguments.
+
 client
 ------
-    - client.post.after (client, path, data, method):
+    - client.post.after (event_name, client, path, data, method):
         - **client:** JsonWspClient instance.
-        - **path:** request path relative to the JsonWspClient instance url.
+        - **path:** request path relative to the JsonWspClient instance URL.
         - **data:** data passed to the request.
         - **method:** method used for the request.
 
-    - client.post.before (client, path, data, method):
+    - client.post.before (event_name, client, path, data, method):
         - **client:** JsonWspClient instance.
-        - **path:** request path relative to the JsonWspClient instance url.
+        - **path:** request path relative to the JsonWspClient instance URL.
         - **data:** data passed to the request.
         - **method:** method used for the request.
 
-    - client.post_mp.after (client, path, attachs, data, method):
+    - client.post_mp.after (event_name, client, path, attachs, data, method):
         - **client:** JsonWspClient instance.
-        - **path:** request path relative to the JsonWspClient instance url.
+        - **path:** request path relative to the JsonWspClient instance URL.
         - **attachs** Dictionary with attachments.
         - **data:** data passed to the request.
         - **method:** method used for the request.
 
-    - client.post_mp.before (client, path, attachs, data, method):
+    - client.post_mp.before (event_name, client, path, attachs, data, method):
         - **client:** JsonWspClient instance.
-        - **path:** request path relative to the JsonWspClient instance url.
+        - **path:** request path relative to the JsonWspClient instance URL.
         - **attachs** Dictionary with attachments.
         - **data:** data passed to the request.
         - **method:** method used for the request.
@@ -84,46 +140,46 @@ client
 
 file
 ----
-    - file.close (fobj, value, max_value):
-        - **fobj:** file-like objet instance.
+    - file.close (event_name, fobj, value, max_value):
+        - **fobj:** file-like object instance.
         - **value:** bytes read/write.
         - **max_value:** file length.
 
-    - file.closed (fobj, value, max_value):
-        - **fobj:** file-like objet instance.
+    - file.closed (event_name, fobj, value, max_value):
+        - **fobj:** file-like object instance.
         - **value:** bytes read/write.
         - **max_value:** file length.
 
-    - file.init (fobj, value, max_value):
-        - **fobj:** file-like objet instance.
+    - file.init (event_name, fobj, value, max_value):
+        - **fobj:** file-like object instance.
         - **value:** bytes read/write.
         - **max_value:** file length.
 
-    - file.read  (fobj, value, max_value):
-       - **fobj:** file-like objet instance.
+    - file.read (event_name, fobj, value, max_value):
+       - **fobj:** file-like object instance.
        - **value:** bytes read/write.
        - **max_value:** file length.
 
-    - file.write (fobj, value, max_value):
-       - **fobj:** file-like objet instance.
+    - file.write (event_name, fobj, value, max_value):
+       - **fobj:** file-like object instance.
        - **value:** bytes read/write.
        - **max_value:** file length.
 
 service 
 -------
-    - service.call_method.after (service, method, attachment_map, \**kwargs):
+    - service.call_method.after (event_name, service, method, attachment_map, \**kwargs):
        - **service** service instance.
        - **method** called service method name.
        - **attachment_map** attachment map (if any).
        - **\**kwargs** dictionary with passed params.
 
-    - service.call_method.before (service, method, attachment_map, \**kwargs):
+    - service.call_method.before (event_name, service, method, attachment_map, \**kwargs):
        - **service** service instance.
        - **method** called service method name.
        - **attachment_map** attachment map (if any).
        - **\**kwargs** dictionary with passed params.
 
-    - service.description_loaded (service):
+    - service.description_loaded (event_name, service):
         - **service:** service instance.
 
 
@@ -132,10 +188,15 @@ service
 Response processing
 ===================
 **JsonWspClient** can process responses before they are returned by the called service method.
-So you can analyse and/or modify the reponse on the fly before use it. 
+So you can analyze and/or modify the response on the fly before use it. 
 You can also concatenate multiple **response_processors** obviously all them must return the response object.
 
     ``response_processors(response, service, client, method_name, **kwargs)``
+
+.. note::
+
+    Only the response is mandatory all the other parameters are passed as 
+    optional keyword arguments.
 
 See :ref:`response_processing_example` example.
 
@@ -143,9 +204,26 @@ See :ref:`response_processing_example` example.
 
 Parameters mapping
 ==================
-You can also map service methos params to client attributes or functions.
+You can also map service methods params to client attributes or methods, string or function.
+So you can memorize values and silently pass them to services method call as 
+parameters if the method need them.
 
-So you can memorize values and impilcitly pass them to services method. Expecially if you subclass the client. 
+If you map a parameter with a callable you will receive the method name as first keyword argument
+and all the other arguments passed to the method (all arguments are optional).
+
+.. code-block:: python
+
+    def token(method_name, **kwargs):
+        """Conditional param"""
+        if method_name == 'get_user':
+            return '12345'
+        return '5678'
+
+    cli = JsonWspClient(testserver.url, services=['Authenticate'], params_mapping={'token': token})
+    
+
+See :ref:`params_mapping_example` example.
+
 
 .. _fault_handling:
 

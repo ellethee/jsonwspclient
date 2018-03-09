@@ -61,7 +61,7 @@ We can achive this easely with the **response processors**.
         # we add the attribute **result** to the response which will contain the object 
         # version of the **result** part of the response_dict.
         response.result = type('Result', (object, ), response.response_dict['result'])
-        # we MUST return te reponse in a processors function.
+        # we MUST return te response in a processors function.
         return response
 
     def set_user_info(response, service, client, method_name, **kwargs):

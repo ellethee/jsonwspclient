@@ -43,21 +43,32 @@ class JsonWspAttachmentMeta(type):
         return isinstance(JsonWspAttachment, other)
 
 class JsonWspAttachment(object):
+    """Class for the attachments
 
-    """Class for the attachments"""
-    path = ''
-    att_id = ''
-    filename = None
-    descriptor = None
-    headers = None
-    index = 0
-    size = 0
+    Args:
+
+        index (int): Attachment index.
+
+    Attributes:
+
+        descriptor (any): File descriptor.
+        path (str): Temporary file path.
+    """
+
     __metaclass__ = JsonWspAttachmentMeta
-    
+
     def __init__(self, index=0):
-        self.index = index
-        self.headers = CaseInsensitiveDict()
+        self.att_id = ''
+        """(str): Attachment id."""
         self.descriptor, self.path = tempfile.mkstemp(prefix='content_')
+        self.filename = None
+        """(str): filename if found in headers."""
+        self.headers = CaseInsensitiveDict()
+        """(CaseInsensitiveDict): attachment headers."""
+        self.index = index
+        """(int): Attachment index."""
+        self.size = 0
+        """(int): Attachment size."""
 
     def update(self, headers):
         """update headers"""
@@ -69,29 +80,46 @@ class JsonWspAttachment(object):
             [self.filename])[0]
 
     def close(self):
-        """Close"""
-        os.close(self.descriptor)
-        self.descriptor = None
+        """Try to close the temp file."""
+        try:
+            os.close(self.descriptor)
+            self.descriptor = None
+        except:
+            pass
+        try:
+            self.descriptor.close()
+        except:
+            pass
 
     def open(self, mode='rb'):
-        """Open"""
-        return open(self.filename, mode)
+        """Open the temp file and return the opened file object
+
+        Args:
+            mode (srt, optional): open mode for the file object.
+
+        Returns:
+            (file): the open file.
+        """
+        self.close()
+        self.descriptor = open(self.filename, mode)
+        return self.descriptor
 
     def save(self, path, filename=None, overwrite=True):
         """Save the file to path
 
         Args:
             path (str): Path where to save the file.
-            filename (str): Name for the file (if not already in path)
-            overwrite (boo): Overwrite the file or no (default True)
+            filename (str, optional): Name for the file (if not already in path)
+            overwrite (bool, optional): Overwrite the file or no (default True)
 
         Raises:
-            IOError: if overwrite is False and file already exists.
+            ValueError: if a filename is not found.
 
         Note:
             If `path` is just a folder without the filename and no filename
             param is specified it will try to use the filename in the
             content-disposition header if one.
+
         """
         filename = filename or self.filename
         if os.path.isdir(path):
@@ -99,12 +127,12 @@ class JsonWspAttachment(object):
                 raise ValueError("filename needed")
             path = os.path.join(path, filename)
         if overwrite is False and os.path.exists(path):
-            raise OSError("File exists {}".format(path))
-        shutil.copy(self.path, path)
+            pass
+        else:
+            shutil.copy(self.path, path)
 
 
 class MultiPartReader(object):
-
     """Reader"""
 
     def __init__(self, headers, content, size=None, chunk_size=8192):
