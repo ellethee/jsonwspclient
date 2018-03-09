@@ -10,7 +10,6 @@ import logging
 import requests
 from six import string_types
 from . import jsonwsputils as utils
-from .jsonwsputils import JsonWspNone
 from .jsonwspmultipart import JSONTYPES
 from . import jsonwspexceptions as excs
 log = logging.getLogger('jsonwspclient')
@@ -104,7 +103,7 @@ class JsonWspService(object):
         """Check param"""
         cls = JSONTYPES.get(ptype)
         if cls and not isinstance(value, cls):
-            raise TypeError("Param {} must be {}".format(name, ptype))
+            raise excs.ParamsError("Param {} must be {}".format(name, ptype))
 
         def inside_ckeck(lcls, iname=None, itype=None):
             """Inside check"""
@@ -119,11 +118,13 @@ class JsonWspService(object):
                     inside_ckeck(lvalue, cname, ltype)
             else:
                 if not isinstance(lcls, itype):
-                    raise TypeError("Param {} must be {}".format(iname, itype))
+                    raise excs.ParamsError(
+                        "Param {} must be {}".format(iname, itype))
         if cls is None:
             cls = self._description['types'].get(ptype)
             if not cls:
-                raise TypeError('Invalid param type {} {}'.format(name, ptype))
+                raise excs.ParamsError(
+                    'Invalid param type {} {}'.format(name, ptype))
             inside_ckeck(cls)
 
     def _call_method(self, method_name, **kwargs):
@@ -132,7 +133,7 @@ class JsonWspService(object):
         utils.walk_args_dict(kwargs, attachment_map)
         if self._description_loaded:
             if not set(self._methods[method_name].mandatory).issubset(kwargs):
-                raise ValueError("Missing parameters: {}".format(
+                raise excs.ParamsError("Missing parameters: {}".format(
                     ", ".join(
                         set(self._methods[method_name].mandatory) - set(kwargs))
                 ))
