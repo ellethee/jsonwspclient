@@ -55,7 +55,7 @@ class JsonWspResponse(object):
             try:
                 self.response_dict = self._response.json()
             except ValueError as error:
-                log.debug('errore %s', error)
+                log.debug('error %s', error)
                 self.response_dict = {}
         self._check_fault()
         self._get_attchments_id()
@@ -134,6 +134,12 @@ class JsonWspResponse(object):
         elif self.fault_code == 'incompatible':
             raise excs.IncompatibleFault(response=self)
         return self
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return self.next()
 
     def __enter__(self):
         return self
