@@ -185,16 +185,16 @@ file
 service 
 -------
     - service.call_method.after (event_name, service, method, attachment_map, \**kwargs):
-       - **service** service instance.
-       - **method** called service method name.
-       - **attachment_map** attachment map (if any).
-       - **\**kwargs** dictionary with passed params.
+       - **service:** service instance.
+       - **method:** called service method name.
+       - **attachment_map:** attachment map (if any).
+       - **\**kwargs:** dictionary with passed params.
 
     - service.call_method.before (event_name, service, method, attachment_map, \**kwargs):
-       - **service** service instance.
-       - **method** called service method name.
-       - **attachment_map** attachment map (if any).
-       - **\**kwargs** dictionary with passed params.
+       - **service:** service instance.
+       - **method:** called service method name.
+       - **attachment_map:** attachment map (if any).
+       - **\**kwargs:** dictionary with passed params.
 
     - service.description_loaded (event_name, service):
         - **service:** service instance.
@@ -257,7 +257,7 @@ See :ref:`fault_handling_example` example.
 
 .. note::
 
-    in case of parameter ``raise_for_fault=True`` the response processors are ignored in case of error. 
+    In case of parameter ``raise_for_fault=True`` the response processors are ignored in case of error. 
     While with the :meth:`raise_for_fault` method they are processed BEFORE raising the exception.
     So, your response processor, must consider it
 
