@@ -33,7 +33,6 @@ class Info(LadonType):
 
 
 class TransferService(object):
-
     """TransferTest"""
     def __init__(self):
         self.info = Info()
@@ -80,14 +79,23 @@ class TransferService(object):
             response = File()
             response.name = "{}-{}.txt".format(name, idx + 1)
             filename = join(RES_PATH, response.name)
-            size = getsize(filename)
             response.data = attachment(open(filename, 'rb'))
             responses.append(response)
         return responses
 
+    @ladonize([PORTABLE_STRING], rtype=[File])
+    def multi_download(self, names):
+        """Download"""
+        responses = []
+        for name in names:
+            response = File()
+            response.name = name
+            filename = join(RES_PATH, response.name)
+            response.data = attachment(open(filename, 'rb'))
+            responses.append(response)
+        return responses
 
 class Authenticate(object):
-
     """Authenticate"""
 
     def __init__(self):
@@ -120,3 +128,14 @@ class Authenticate(object):
     def check_token(self, token):
         """check_token"""
         return self._check_token(token)
+
+class ClacService(object):
+    """Calc service"""
+
+    @ladonize([int], rtype=int)
+    def sum(self, numbers):
+        """Sum numbers"""
+        tot = 0
+        for number in numbers:
+            tot += number
+        return tot
