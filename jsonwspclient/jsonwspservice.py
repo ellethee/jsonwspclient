@@ -137,8 +137,9 @@ class JsonWspService(object):
                     ", ".join(
                         set(self._methods[method_name].mandatory) - set(kwargs))
                 ))
-            for par, info in self._methods[method_name].info['params_info'].items():
-                self._check_param(par, kwargs[par], info['type'])
+            # TODO: need a best check params method. (disabled for now)
+            # for par, info in self._methods[method_name].info['params_info'].items():
+            #     self._check_param(par, kwargs[par], info['type'])
         data = {'methodname': method_name}
         data['mirror'] = kwargs.pop('mirror', None)
         data['args'] = kwargs
