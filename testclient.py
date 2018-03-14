@@ -117,6 +117,7 @@ def download_event(event_name, fobj, value, max_value):
     pct = value * float(max_value) / 100
     print("{}%\r".format(pct), end='')
 
+
 def test_upload(testserver):
     """test uploads"""
     cli = JsonWspClient(testserver.url, services=['TransferService'],
@@ -132,18 +133,22 @@ def test_download(testserver):
     cli.download(name=FILENAME).save_all(DOWN_PATH)
     assert filecmp.cmpfiles(RES_PATH, DOWN_PATH, FILENAME)
 
+
 def test_client(testserver):
     """test download"""
-    cli = JsonWspClient(testserver.url, services=['Authenticate', 'TransferService'])
-    import ipdb;ipdb.set_trace()
+    cli = JsonWspClient(testserver.url, services=[
+                        'Authenticate', 'TransferService'])
+
 
 def test_error_one(testserver):
     """params_mapping"""
     cli = JsonWspClient(testserver.url, services=['TransferService'])
     try:
-        cli.secure_download(name=FILENAME).raise_for_fault().save_all(DOWN_PATH)
+        cli.secure_download(
+            name=FILENAME).raise_for_fault().save_all(DOWN_PATH)
     except JsonWspFault as error:
         print('Error ', error.description)
+
 
 def test_info(testserver):
     """test download"""
@@ -151,6 +156,7 @@ def test_info(testserver):
         with cli.get_user() as res:
             print(res.response_dict)
             print(res.result)
+
 
 def test_all2(testserver):
     """test all"""
@@ -164,9 +170,9 @@ def test_all2(testserver):
     # silly objectify function
     def objectify(response, **dummy_kwargs):
         """objectify"""
-        response.objpart = type('ObjPart', (object, ), response.response_dict['result'])
+        response.objpart = type('ObjPart', (object, ),
+                                response.response_dict['result'])
         return response
-
 
     # out client
     class MyClient(JsonWspClient):
@@ -196,9 +202,41 @@ def test_all2(testserver):
     cli.secure_download(name=FILENAME).save_all(DOWN_PATH)
     assert filecmp.cmpfiles(RES_PATH, DOWN_PATH, FILENAME)
 
+
+def test_calc(testserver):
+    """test download"""
+    cli = JsonWspClient(testserver.url, ['ClacService'])
+    numbers_list = [
+        [1, 2, 3, 4, 5],
+        [10, 20, 5, 7],
+        [12, 4, 32, 6],
+        [40, 2],
+    ]
+    for numbers in numbers_list:
+        print("numbers to add up ", " + ".join([str(a) for a in numbers]))
+        with cli.sum(numbers=numbers) as res:
+            if res.result == 42:
+                print("the result is: The answer to the ultimate question of "
+                      "life, the universe and everything")
+            else:
+                print("the result is:", res.result)
+
+
+def test_response1(testserver):
+    """test download"""
+    cli = JsonWspClient(testserver.url, ['TransferService'])
+    res = cli.multi_download(names=['test-20-1.txt', 'test-20-2.txt'])
+    for attach in res:
+        filename = "down-file{}".format(attach.index)
+        print("Saving", filename)
+        attach.save('/tmp/', filename=filename)
+
+
 # test_process_response(TESTSERVER)
 # test_download(TESTSERVER)
 # test_upload(TESTSERVER)
 # test_client(TESTSERVER)
-test_all2(TESTSERVER)
+# test_all2(TESTSERVER)
 # test_info(TESTSERVER)
+# test_calc(TESTSERVER)
+test_response1(TESTSERVER)
