@@ -332,7 +332,7 @@ All together now (with subclassing)
     with MyClient("http://mysite.com", ['Authenticate', 'TransferService']) as cli:
         # authenticate user.
         cli.authenticate('username', 'password')
-        if self.user:
+        if cli.user:
             try:
                 # try to download the file (automatically uses the user token as parameter)
                 # we use the :meth:`raise_for_fault` method which returns the response
