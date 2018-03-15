@@ -12,7 +12,7 @@ import filecmp
 import pytest
 from jsonwspclient import JsonWspClient
 from jsonwspclient.jsonwsputils import get_fileitem
-from jsonwspclient.jsonwspexceptions import JsonWspFault
+from jsonwspclient.jsonwspexceptions import JsonWspFault, ParamsError
 PATH = dirname(abspath(__file__))
 RES_PATH = join(PATH, 'resource')
 DOWN_PATH = join(PATH, 'download')
@@ -99,35 +99,65 @@ def test_params_mapping_two(testserver):
     cli.getuser()
     assert cli.check_token()
 
+
 def test_params_mapping_error_one(testserver, cleandir):
     """params_mapping"""
     cli = JsonWspClient(testserver.url, services=['TransferService'])
     try:
-        cli.secure_download(raise_for_fault=True, name=FILENAME).save_all(DOWN_PATH)
+        cli.secure_download(raise_for_fault=True,
+                            name=FILENAME).save_all(DOWN_PATH)
         assert False
-    except JsonWspFault as error:
-        print(error)
+    except ParamsError as error:
+        print(error,)
         assert True
+
 
 def test_params_mapping_error_two(testserver, cleandir):
     """params_mapping"""
-    cli = JsonWspClient(testserver.url, raise_for_fault=True, services=['TransferService'])
+    cli = JsonWspClient(testserver.url, raise_for_fault=True,
+                        services=['TransferService'])
     try:
         cli.secure_download(name=FILENAME, token='4321').save_all(DOWN_PATH)
         assert False
     except JsonWspFault as error:
-        print(error)
+        print(error,)
         assert True
+
 
 def test_params_mapping_error_treee(testserver, cleandir):
     """params_mapping"""
-    cli = JsonWspClient(testserver.url, raise_for_fault=True, services=['TransferService'])
+    cli = JsonWspClient(testserver.url, raise_for_fault=True,
+                        services=['TransferService'])
     try:
         cli.secure_download(name=FILENAME, token=4321).save_all(DOWN_PATH)
         assert False
     except JsonWspFault as error:
         print(error)
         assert True
+
+
+def test_response_one(testserver):
+    """test response one"""
+    cli = JsonWspClient(testserver.url, ['ClacService'])
+    assert cli.sum(numbers=[1, 2, 3]).result == 6
+
+def test_response_two(testserver):
+    """test response one"""
+    cli = JsonWspClient(testserver.url, ['ClacService'])
+    numbers_list = [[1, 2, 3, 4, 5], [10, 20, 5, 7], [12, 4, 32, 6], [40, 2]]
+    for numbers in numbers_list:
+        with cli.sum(numbers=numbers) as res:
+            assert res.result == sum(numbers)
+
+def test_response_three(testserver):
+    """test response one"""
+    cli = JsonWspClient(testserver.url, ['TransferService'])
+    res = cli.multi_download(names=['test-20-1.txt', 'test-20-2.txt'])
+    for attach in res:
+        filename = "down-file{}".format(attach.index)
+        attach.save('/tmp/', filename=filename)
+        assert filecmp.cmpfiles(RES_PATH, DOWN_PATH, filename)
+
 
 def test_all(testserver):
     """test all"""
@@ -141,34 +171,52 @@ def test_all(testserver):
     # silly objectify function
     def objectify(response, **dummy_kwargs):
         """objectify"""
-        response.objpart = type('ObjPart', (object, ), response.response_dict['result'])
+        # our objpart will be an empty dict if response have some fault.
+        # else it can be response.result.
+        objpart = {} if response.has_fault else response.result
+        # set the right objpart for the response.
+        response.objpart = type('ObjPart', (object, ), objpart)
+        # return the response.
         return response
 
-
-    # out client
+    # our client
     class MyClient(JsonWspClient):
         """My Client"""
         # we can specify some thing in the class creation
         # we will download only so we will bind only the file.write event.
-        events = [('file.write', file_handler)]
+        events = [('file.read', file_handler)]
         # we will objectify the result.
         processors = [objectify]
-        # and map the token parma to the get_token method
+        # and map the token param to the get_token method of the client.
         params_mapping = {'token': 'get_token'}
         user = None
 
         def authenticate(self, username, password):
             """Authenticate"""
-            self.user = self.auth(username=username, password=password).objpart
+            res = self.auth(username=username, password=password)
+            # We set the user only if we not have faults.
+            # (see the response processors).
+            self.user = res.objpart if res.has_fault else None
+            # Is a good practice to return the response if we are wrapping or
+            # overriding some service method
+            return res
 
-        def get_token(self, **kwargs):
+        def get_token(self):
             """get token"""
+            # return the user token (see params_mapping)
             return self.user.token
 
     # instantiate the client.
-    cli = MyClient(testserver.url, ['Authenticate', 'TransferService'])
-    # authenticate user.
-    cli.authenticate('username', 'password')
-    # donwload the file (automatically uses the user token as parameter)
-    cli.secure_download(name=FILENAME).save_all(DOWN_PATH)
+    with MyClient(testserver.url, ['Authenticate', 'TransferService']) as cli:
+        # authenticate user.
+        cli.authenticate('username', 'password')
+        if cli.user:
+            try:
+                # try to download the file (automatically uses the user token as parameter)
+                # we use the :meth:`raise_for_fault` method which returns the response
+                # or a JsonWspFault.
+                cli.secure_download(
+                    name="testfile.txt").raise_for_fault().save_all("/tmp")
+            except JsonWspFault as error:
+                print("error", error)
     assert filecmp.cmpfiles(RES_PATH, DOWN_PATH, FILENAME)

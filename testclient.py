@@ -46,43 +46,54 @@ def test_all(testserver):
     # silly objectify function
     def objectify(response, **dummy_kwargs):
         """objectify"""
-        response.objpart = type('ObjPart', (object, ),
-                                response.response_dict['result'])
+        # our objpart will be an empty dict if response have some fault.
+        # else it can be response.result.
+        objpart = {} if response.has_fault else response.result
+        # set the right objpart for the response.
+        response.objpart = type('ObjPart', (object, ), objpart)
+        # return the response.
         return response
 
-    def ext_token(**kwargs):
-        """get token funct"""
-        return 'io sono token'
-
-    iltoken = 'sono una variabile'
-
-    # out client
+    # our client
     class MyClient(JsonWspClient):
         """My Client"""
         # we can specify some thing in the class creation
         # we will download only so we will bind only the file.write event.
-        events = [('file.write', file_handler)]
+        events = [('file.read', file_handler)]
         # we will objectify the result.
         processors = [objectify]
-        # and map the token parma to the get_token method
-        params_mapping = {'token': 123}
+        # and map the token param to the get_token method of the client.
+        params_mapping = {'token': 'get_token'}
         user = None
 
         def authenticate(self, username, password):
             """Authenticate"""
-            self.user = self.auth(username=username, password=password).objpart
+            res = self.auth(username=username, password=password)
+            # We set the user only if we not have faults.
+            # (see the response processors).
+            self.user = res.objpart if res.has_fault else None
+            # Is a good practice to return the response if we are wrapping or
+            # overriding some service method
+            return res
 
-        def get_token(self, **kwargs):
+        def get_token(self):
             """get token"""
+            # return the user token (see params_mapping)
             return self.user.token
 
     # instantiate the client.
-    cli = MyClient(testserver.url, ['Authenticate', 'TransferService'])
-    # authenticate user.
-    cli.authenticate('username', 'password')
-    # donwload the file (automatically uses the user token as parameter)
-    cli.secure_download(name=FILENAME).save_all('/tmp')
-    assert filecmp.cmpfiles(RES_PATH, DOWN_PATH, FILENAME)
+    with MyClient(testserver.url, ['Authenticate', 'TransferService']) as cli:
+        # authenticate user.
+        cli.authenticate('username', 'password')
+        if cli.user:
+            try:
+                # try to download the file (automatically uses the user token as parameter)
+                # we use the :meth:`raise_for_fault` method which returns the response
+                # or a JsonWspFault.
+                cli.secure_download(
+                    name="testfile.txt").raise_for_fault().save_all("/tmp")
+            except JsonWspFault as error:
+                print("error", error)
 
 
 def test_process_response(testserver):
@@ -134,12 +145,6 @@ def test_download(testserver):
     assert filecmp.cmpfiles(RES_PATH, DOWN_PATH, FILENAME)
 
 
-def test_client(testserver):
-    """test download"""
-    cli = JsonWspClient(testserver.url, services=[
-                        'Authenticate', 'TransferService'])
-
-
 def test_error_one(testserver):
     """params_mapping"""
     cli = JsonWspClient(testserver.url, services=['TransferService'])
@@ -156,51 +161,6 @@ def test_info(testserver):
         with cli.get_user() as res:
             print(res.response_dict)
             print(res.result)
-
-
-def test_all2(testserver):
-    """test all"""
-
-    # our event handler for file download monitoring.
-    def file_handler(event_name, value=0, max_value=0):
-        """file Handler"""
-        pct = value * float(max_value) / 100
-        print("{} {}%\r".format(event_name, pct), end='')
-
-    # silly objectify function
-    def objectify(response, **dummy_kwargs):
-        """objectify"""
-        response.objpart = type('ObjPart', (object, ),
-                                response.response_dict['result'])
-        return response
-
-    # out client
-    class MyClient(JsonWspClient):
-        """My Client"""
-        # we can specify some thing in the class creation
-        # we will download only so we will bind only the file.write event.
-        events = [('file.write', file_handler)]
-        # we will objectify the result.
-        processors = [objectify]
-        # and map the token parma to the get_token method
-        params_mapping = {'token': 'get_token'}
-        user = None
-
-        def authenticate(self, username, password):
-            """Authenticate"""
-            self.user = self.auth(username=username, password=password).objpart
-
-        def get_token(self, **kwargs):
-            """get token"""
-            return self.user.token
-
-    # instantiate the client.
-    cli = MyClient(testserver.url, ['Authenticate', 'TransferService'])
-    # authenticate user.
-    cli.authenticate('username', 'password')
-    # donwload the file (automatically uses the user token as parameter)
-    cli.secure_download(name=FILENAME).save_all(DOWN_PATH)
-    assert filecmp.cmpfiles(RES_PATH, DOWN_PATH, FILENAME)
 
 
 def test_calc(testserver):
