@@ -34,9 +34,9 @@ Contents
    Installation <installation>
    Examples <examples>
    Module Reference <api/modules>
+   Changelog <changes>
    License <license>
    Authors <authors>
-..   Changelog <changes>
 
 
 Indices and tables
