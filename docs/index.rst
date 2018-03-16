@@ -33,10 +33,10 @@ Contents
    Features <features>
    Installation <installation>
    Examples <examples>
+   Module Reference <api/modules>
    License <license>
    Authors <authors>
-   Changelog <changes>
-   Module Reference <api/modules>
+..   Changelog <changes>
 
 
 Indices and tables
