@@ -19,7 +19,7 @@ log = logging.getLogger('jsonwspclient')
 try:
     __version__ = pkg_resources.get_distribution(__name__).version
 except:
-    __version__ = 'unknown'
+    __version__ = '1.0.3'
 
 
 class JsonWspClient(object):
