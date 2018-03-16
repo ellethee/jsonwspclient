@@ -6,6 +6,7 @@ Jsonwspclient :mod:`jsonwspclient.jsonwspclient`
 
 """
 # pylint: disable=relative-import
+import pkg_resources
 import logging
 import platform
 import requests
@@ -15,7 +16,10 @@ from .jsonwspresponse import JsonWspResponse
 from .jsonwspmultipart import MultiPartWriter
 from . import jsonwsputils as utils
 log = logging.getLogger('jsonwspclient')
-__version__ = '1.0.3'
+try:
+    __version__ = pkg_resources.get_distribution(__name__).version
+except:
+    __version__ = 'unknown'
 
 
 class JsonWspClient(object):
