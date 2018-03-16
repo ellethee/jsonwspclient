@@ -7,7 +7,7 @@ It is designed for make easy to call services methods and to access to response 
 **JsonWspClient** is based on python Requests_ and uses the `Session object`_.
 So allows you to persist certain parameters and the cookies across requests.
 
-It supports also :ref:`events_handling`, :ref:`response_processing`, :ref:`params_mapping` and :ref:`fault_handling`.
+It supports also **events_handling**, **response_processing**, **params_mapping** and **fault_handling**.
 So you can have a good control over your scripts flow.
 
 .. note::
