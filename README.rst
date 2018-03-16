@@ -17,10 +17,13 @@ So you can have a good control over your scripts flow.
 
     However it should be flexible enough to be used with other JSON-WSP services.
 
+    See `JsonWspClient docs`_.
+
     .. _Ladon: https://bitbucket.org/jakobsg/ladon
     .. _Requests: http://docs.python-requests.org/
     .. _jsonwsp: https://bitbucket.org/jakobsg/ladon/src/68b7b47bcf217e0511559d831c621e33ca548ca2/src/ladon/clients/jsonwsp.py?at=master&fileviewer=file-view-default
     .. _`Session object`: http://docs.python-requests.org/en/master/user/advanced/#session-objects
+    .. _`JsonWspClient docs`: http://jsonwspclient.readthedocs.io/en/latest
 
 
 Note
