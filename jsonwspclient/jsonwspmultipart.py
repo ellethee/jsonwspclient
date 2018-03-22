@@ -23,7 +23,7 @@ SPLIT = b'(?m)--<b>\n|\n--<b>\n|\n--<b>--|--<b>\r\n|\r\n--<b>\r\n|\r\n--<b>--'
 get_headers = re.compile(b'(?m)^(?P<name>.+)\s*:\s*(?P<value>.+)\s*$').findall
 split_headers = re.compile(b'(?m)\n\n|\r\n\r\n').search
 get_filename = re.compile(
-    r'(?i)filename=[\"\']?(?P<filename>.+)[\"\']?;?').findall
+    r'(?i)filename=[\"\']?(?P<filename>.+[^\"\'])[\"\']?;?').findall
 HDFILL = b'\r\n\r\n'
 HDFIL2 = b'\n\n'
 
