@@ -8,6 +8,7 @@ Transfer_test :mod:`jsonwspclient.transfer_test`
 from os.path import join, dirname, getsize, basename, abspath
 from werkzeug.exceptions import Unauthorized
 from ladon.ladonizer import ladonize
+from ladon.exceptions.service import ServerFault, ClientFault
 from ladon.types.ladontype import LadonType
 from ladon.types.attachment import attachment
 from ladon.compat import PORTABLE_STRING
@@ -139,3 +140,16 @@ class ClacService(object):
         for number in numbers:
             tot += number
         return tot
+
+
+class FaultService(object):
+    """Fault test"""
+
+    @ladonize(PORTABLE_STRING, rtype=int)
+    def raise_fault(self, ftype):
+        """raise fault"""
+        if ftype == 'client':
+            raise ClientFault("Client fault")
+        elif ftype == 'server':
+            raise ServerFault("Service fault")
+        return 0

@@ -124,7 +124,7 @@ def test_params_mapping_error_two(testserver, cleandir):
         assert True
 
 
-def test_params_mapping_error_treee(testserver, cleandir):
+def test_params_mapping_error_three(testserver, cleandir):
     """params_mapping"""
     cli = JsonWspClient(testserver.url, raise_for_fault=True,
                         services=['TransferService'])
@@ -135,6 +135,12 @@ def test_params_mapping_error_treee(testserver, cleandir):
         print(error)
         assert True
 
+def test_nonzero(testserver, cleandir):
+    """params_mapping"""
+    cli = JsonWspClient(testserver.url, services=['FaultService'])
+    assert cli.raise_fault(ftype='none')
+    assert not cli.raise_fault(ftype='server')
+    assert not cli.raise_fault(ftype='client')
 
 def test_response_one(testserver):
     """test response one"""
