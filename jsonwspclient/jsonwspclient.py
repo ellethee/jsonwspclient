@@ -42,11 +42,12 @@ class JsonWspClient(object):
             `Requests Authentication <http://docs.python-requests.org/en/master/user/authentication/#authentication>`_
             in most case a simple tuple with **username** and **password** should be enough.
         proxies (dict): Dictionary mapping protocol to the URL of the proxy (see
-            `Requests proxies <http://docs.python-requests.org/en/master/user/advanced/#proxies>`_)
+            `Requests proxies <http://docs.python-requests.org/en/master/user/advanced/#proxies>`_).
         verify (bool, str): Either a boolean, in which case it controls whether we
             verify the server's TLS certificate, or a string, in which case
             it must be a path to a CA bundle to use. (see
-            `Requests SSL Cert Verification <http://docs.python-requests.org/en/master/user/advanced/?highlight=ssl#ssl-cert-verification>`_)
+            `Requests SSL Cert Verification <http://docs.python-requests.org/en/master/user/advanced/?highlight=ssl#ssl-cert-verification>`_).
+        response_class (JsonWspResponse subclass): Custom Response class wich subclass JsonWspResponse (default JsonWspResponse).
     """
     events = []
     """([(str, function)]): list of tuples contaning the event name and the relative function.
@@ -64,7 +65,9 @@ class JsonWspClient(object):
     def __init__(
             self, url, services, headers=None, events=None, processors=None,
             params_mapping=None, raise_for_fault=False, auth=None, proxies=None,
-            verify=False, **kwargs):
+            verify=False, response_class=None, **kwargs):
+        #: response class
+        self._rcls = response_class or JsonWspResponse
         self.session = requests.Session()
         self.session.auth = auth
         self.url = url
@@ -144,7 +147,7 @@ class JsonWspClient(object):
         request = self.session.prepare_request(
             requests.Request(
                 method, urljoin(self.url, path), json=data))
-        response = JsonWspResponse(self.session.send(request), self.trigger)
+        response = self._rcls(self.session.send(request), self.trigger)
         self.trigger(
             'client.post.after', client=self, path=path, data=data,
             method=method, response=response)
@@ -175,7 +178,7 @@ class JsonWspClient(object):
                 headers=stream.headers,
                 data=stream,
             ))
-        response = JsonWspResponse(self.session.send(request), self.trigger)
+        response = self._rcls(self.session.send(request), self.trigger)
         stream.close()
         self.trigger(
             'client.post_mp.after', client=self, path=path, data=data,
