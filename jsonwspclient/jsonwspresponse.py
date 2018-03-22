@@ -46,6 +46,10 @@ class JsonWspResponse(object):
     def __getattr__(self, name):
         return getattr(self._response, name)
 
+    def __nonzero__(self):
+        return self.has_fault is False
+    __bool__ = __nonzero__
+
     def _process(self):
         """_process."""
         if self._boundary:
