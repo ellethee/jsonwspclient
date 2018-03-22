@@ -137,13 +137,14 @@ class JsonWspService(object):
                     ", ".join(
                         set(self._methods[method_name].mandatory) - set(kwargs))
                 ))
-            # TODO: need a best check params method. (disabled for now)
+            # TODO: need a better check params method. (disabled for now)
             # for par, info in self._methods[method_name].info['params_info'].items():
             #     self._check_param(par, kwargs[par], info['type'])
         data = {'methodname': method_name}
-        data['mirror'] = kwargs.pop('mirror', None)
         data['args'] = kwargs
-        raise_for_fault = kwargs.pop('raise_for_fault', False)
+        if 'mirror' in kwargs:
+            data['mirror'] = kwargs.pop('mirror')
+        raise_for_fault = kwargs.pop('raise_for_fault', self._client._raise_for_fault)
         self._trigger(
             'service.call_method.before', service=self, method=method_name,
             attachment_map=attachment_map, **kwargs)
@@ -154,7 +155,7 @@ class JsonWspService(object):
             else:
                 response = self._post(self.url, data)
             response.raise_for_status()
-            if self._client._raise_for_fault or raise_for_fault:
+            if raise_for_fault:
                 response.raise_for_fault()
         except excs.JsonWspFault as error:
             log.exception(error)
