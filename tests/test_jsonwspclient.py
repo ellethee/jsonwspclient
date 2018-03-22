@@ -103,37 +103,24 @@ def test_params_mapping_two(testserver):
 def test_params_mapping_error_one(testserver, cleandir):
     """params_mapping"""
     cli = JsonWspClient(testserver.url, services=['TransferService'])
-    try:
-        cli.secure_download(raise_for_fault=True,
-                            name=FILENAME).save_all(DOWN_PATH)
-        assert False
-    except ParamsError as error:
-        print(error,)
-        assert True
+    with pytest.raises(ParamsError, message="Expecting ParamsError"):
+        cli.secure_download(raise_for_fault=True, name=FILENAME).save_all(DOWN_PATH)
 
 
 def test_params_mapping_error_two(testserver, cleandir):
     """params_mapping"""
-    cli = JsonWspClient(testserver.url, raise_for_fault=True,
-                        services=['TransferService'])
-    try:
+    cli = JsonWspClient(
+        testserver.url, raise_for_fault=True, services=['TransferService'])
+    with pytest.raises(JsonWspFault, message="Expecting JsonWspFault"):
         cli.secure_download(name=FILENAME, token='4321').save_all(DOWN_PATH)
-        assert False
-    except JsonWspFault as error:
-        print(error,)
-        assert True
 
 
 def test_params_mapping_error_three(testserver, cleandir):
     """params_mapping"""
-    cli = JsonWspClient(testserver.url, raise_for_fault=True,
-                        services=['TransferService'])
-    try:
+    cli = JsonWspClient(
+        testserver.url, raise_for_fault=True, services=['TransferService'])
+    with pytest.raises(JsonWspFault, message="Expecting JsonWspFault"):
         cli.secure_download(name=FILENAME, token=4321).save_all(DOWN_PATH)
-        assert False
-    except JsonWspFault as error:
-        print(error)
-        assert True
 
 def test_nonzero(testserver, cleandir):
     """params_mapping"""
