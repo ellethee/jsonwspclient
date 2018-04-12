@@ -1,3 +1,5 @@
 ============
 Installation
 ============
+
+pip install jsonwspclient
