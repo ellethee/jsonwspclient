@@ -5,13 +5,15 @@ Transfer_test :mod:`jsonwspclient.transfer_test`
 ===============================================
 
 """
-from os.path import join, dirname, getsize, basename, abspath
-from werkzeug.exceptions import Unauthorized
-from ladon.ladonizer import ladonize
-from ladon.exceptions.service import ServerFault, ClientFault
-from ladon.types.ladontype import LadonType
-from ladon.types.attachment import attachment
+from os.path import abspath, basename, dirname, getsize, join
+
 from ladon.compat import PORTABLE_STRING
+from ladon.exceptions.service import ClientFault, ServerFault
+from ladon.ladonizer import ladonize
+from ladon.types.attachment import attachment
+from ladon.types.ladontype import LadonType
+from werkzeug.exceptions import Unauthorized
+
 PATH = dirname(abspath(__file__))
 RES_PATH = join(PATH, 'resource')
 UP_PATH = join(PATH, 'upload')
@@ -21,6 +23,7 @@ class File(LadonType):
     """Filetype"""
     data = attachment
     name = PORTABLE_STRING
+
 
 class User(LadonType):
     """UserType"""
@@ -35,6 +38,7 @@ class Info(LadonType):
 
 class TransferService(object):
     """TransferTest"""
+
     def __init__(self):
         self.info = Info()
         self.info.name = self.__class__.__name__
@@ -96,6 +100,7 @@ class TransferService(object):
             responses.append(response)
         return responses
 
+
 class Authenticate(object):
     """Authenticate"""
 
@@ -129,6 +134,7 @@ class Authenticate(object):
     def check_token(self, token):
         """check_token"""
         return self._check_token(token)
+
 
 class ClacService(object):
     """Calc service"""
