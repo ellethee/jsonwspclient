@@ -5,24 +5,26 @@ Jsonwspclient :mod:`jsonwspclient.jsonwspclient`
 ================================================
 
 """
-# pylint: disable=relative-import
-import pkg_resources
 import logging
 import platform
+
+import pkg_resources
 import requests
 from requests.compat import urljoin
-from .jsonwspservice import JsonWspService
-from .jsonwspresponse import JsonWspResponse
-from .jsonwspmultipart import MultiPartWriter
+
 from . import jsonwsputils as utils
+from .jsonwspmultipart import MultiPartWriter
+from .jsonwspresponse import JsonWspResponse
+from .jsonwspservice import JsonWspService
+
 log = logging.getLogger('jsonwspclient')
 try:
     __version__ = pkg_resources.get_distribution(__name__).version
 except:
-    __version__ = '1.0.3'
+    __version__ = '2.0.1'
 
 
-class JsonWspClient(object):
+class JsonWspClient:
     """JsonWsp Client.
 
     The JSON-WSP Client class
@@ -57,6 +59,7 @@ class JsonWspClient(object):
     """(dict): Dictionary with mapping for client attributes or
             methods to service command parmaters.
     """
+
     processors = []
     """([function]): list of functions that can process
             and/or modify responses before they are returned.
@@ -194,7 +197,7 @@ class JsonWspClient(object):
         """Load service."""
         srv = JsonWspService(self, service)
         self._services[service.lower()] = srv
-        for method_name, method in srv.list_methods().items():
+        for method_name, method in list(srv.list_methods().items()):
             if not method_name in self._methods:
                 self._methods[method_name] = method
 
@@ -204,8 +207,8 @@ class JsonWspClient(object):
         return self._services[name.lower()]
 
     def __dir__(self):
-        return sorted(self.__dict__.keys() + self._methods.keys() +
-                      self._services.keys())
+        return sorted(list(self.__dict__) + list(self._methods) +
+                      list(self._services))
 
     def __enter__(self):
         return self

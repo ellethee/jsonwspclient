@@ -5,9 +5,11 @@ Jsonwspresponse :mod:`jsonwspclient.jsonwspresponse`
 ====================================================
 """
 import logging
+
+from . import jsonwspexceptions as excs
 from . import jsonwsputils as utils
 from .jsonwspmultipart import MultiPartReader
-from . import jsonwspexceptions as excs
+
 log = logging.getLogger('jsonwspclient')
 
 
@@ -33,7 +35,7 @@ class JsonWspResponse(object):
         """(str): Fault code if response has fault."""
         self.has_fault = False
         """(bool): True if response has fault."""
-        self.is_multipart = True if self._boundary else False
+        self.is_multipart = bool(self._boundary)
         """(bool): True if response is multipart."""
         self.length = int(self.headers.get('Content-Length', '0'))
         """(int): response content length"""
@@ -46,15 +48,14 @@ class JsonWspResponse(object):
     def __getattr__(self, name):
         return getattr(self._response, name)
 
-    def __nonzero__(self):
+    def __bool__(self):
         return self.has_fault is False
-    __bool__ = __nonzero__
 
     def _process(self):
         """_process."""
         if self._boundary:
             self.__reader = self._get_reader()
-            self.response_dict = self.next()
+            self.response_dict = next(self)
         else:
             try:
                 self.response_dict = self._response.json()
@@ -106,7 +107,7 @@ class JsonWspResponse(object):
         self._multipart.read_all(chunk_size)
         return self._multipart.by_id
 
-    def next(self):
+    def __next__(self):
         """If JsonWspResponse is multipart returns the next attachment.
 
         Returns:
@@ -141,9 +142,6 @@ class JsonWspResponse(object):
 
     def __iter__(self):
         return self
-
-    def __next__(self):
-        return self.next()
 
     def __enter__(self):
         return self

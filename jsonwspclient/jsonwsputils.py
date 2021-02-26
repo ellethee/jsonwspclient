@@ -5,22 +5,19 @@ Jsonwsputils :mod:`jsonwspclient.jsonwsputils`
 ==============================================
 
 """
-from __future__ import with_statement, absolute_import, print_function
+
 import io
+import logging
 import os
 import re
-import sys
 import types
-import logging
-from six import string_types, integer_types
-if sys.version_info[0] == 2:
-    def make_method(funct, instance, cls):
-        """Make method"""
-        return types.MethodType(funct, instance, cls)
-elif sys.version_info[0] >= 3:
-    def make_method(funct, instance, _cls):
-        """Make method"""
-        return types.MethodType(funct, instance)
+
+
+def make_method(funct, instance, _cls):
+    """Make method"""
+    return types.MethodType(funct, instance)
+
+
 has_attachments = re.compile(r'(?i)^cid:(.+)$').match
 _get_multipart = re.compile(r'(?i)multipart/(?P<multipart>[^; ]+)').search
 _get_boundary = re.compile(r'(?i)boundary=(?P<boundary>[^; ]+)').search
@@ -68,8 +65,8 @@ def check_attachment(items):
     if not isinstance(items, list):
         items = [items]
     for item in items:
-        for value in item.values():
-            if not isinstance(value, string_types):
+        for value in list(item.values()):
+            if not isinstance(value, str):
                 continue
             isatt = has_attachments(value)
             if isatt:
@@ -88,7 +85,7 @@ def fix_attachment(val, attachment_map):
         attachment_map['files'][cid] = val
         return 'cid:%s' % cid
 
-    if (isinstance(val, string_types) and val and
+    if (isinstance(val, str) and val and
             val[0] == '@' and os.path.isfile(val[1:])):
         cid = os.path.normpath(val[1:])
         if cid not in attachment_map:
@@ -98,7 +95,7 @@ def fix_attachment(val, attachment_map):
 
 def walk_args_dict(kwargs, attachment_map):
     """Walk args."""
-    for key, value in kwargs.items():
+    for key, value in list(kwargs.items()):
         if isinstance(value, tuple):
             kwargs[key] = list(value)
         if isinstance(value, list):

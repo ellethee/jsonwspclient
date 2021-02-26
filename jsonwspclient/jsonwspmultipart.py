@@ -5,8 +5,7 @@ Jsonwspmultipart :mod:`jsonwspclient.jsonwspmultipart`
 ======================================================
 
 """
-from __future__ import with_statement, absolute_import, print_function
-from hashlib import md5
+
 import json
 import logging
 import os
@@ -14,10 +13,12 @@ import re
 import shutil
 import tempfile
 import time
+from hashlib import md5
+
 from requests.structures import CaseInsensitiveDict
-import six
-from six import string_types, integer_types
+
 from . import jsonwsputils as utils
+
 log = logging.getLogger('jsonwspclient')
 SPLIT = b'(?m)--<b>\n|\n--<b>\n|\n--<b>--|--<b>\r\n|\r\n--<b>\r\n|\r\n--<b>--'
 get_headers = re.compile(b'(?m)^(?P<name>.+)\s*:\s*(?P<value>.+)\s*$').findall
@@ -32,17 +33,18 @@ def stringify_headers(headers, encoding='UTF-8'):
     """stringi"""
     return b"\n".join(
         b"%s: %s" % (k.encode(encoding), v.encode(encoding))
-        for k, v in headers.items()) + HDFIL2
+        for k, v in list(headers.items())) + HDFIL2
 
 
 class JsonWspAttachmentMeta(type):
     """Meta for instance check"""
     def __instancecheck__(cls, other):
-        if isinstance(other, six.string_types):
+        if isinstance(other, str):
             return other.startswith('cid:')
         return isinstance(JsonWspAttachment, other)
 
-class JsonWspAttachment(six.with_metaclass(JsonWspAttachmentMeta)):
+
+class JsonWspAttachment(metaclass=JsonWspAttachmentMeta):
     """Class for the attachments
 
     Args:
@@ -71,7 +73,7 @@ class JsonWspAttachment(six.with_metaclass(JsonWspAttachmentMeta)):
     def update(self, headers):
         """update headers"""
         self.headers.update({k.decode(): v.decode()
-                             for k, v in headers.items()})
+                             for k, v in list(headers.items())})
         self.att_id = self.headers.get('content-id', self.att_id)
         self.filename = (
             get_filename(self.headers.get('content-disposition', '')) +
@@ -278,7 +280,7 @@ class MultiPartWriter(object):
         """Get Length"""
         length = len(self._get_multipart())
         length += len(self._get_jsonpart())
-        for fileid, fobj in self._files.items():
+        for fileid, fobj in list(self._files.items()):
             length += len(self._get_attachpart(fileid))
             fobj.seek(0, os.SEEK_END)
             length += fobj.tell() + len(self._bound)
@@ -297,7 +299,7 @@ class MultiPartWriter(object):
         return stringify_headers({
             'Content-Type': 'application/json, charset={}'.format(self._enc),
             'Content-ID': 'body'
-        }) + six.b(json.dumps(self._jsonpart)) + self._bound
+        }) + json.dumps(self._jsonpart).encode("latin-1") + self._bound
 
     @staticmethod
     def _get_attachpart(fileid):
@@ -314,7 +316,7 @@ class MultiPartWriter(object):
         yield part
         part = self._get_jsonpart()
         yield part
-        for fileid, fobj in self._files.items():
+        for fileid, fobj in list(self._files.items()):
             part = self._get_attachpart(fileid)
             yield part
             while True:
@@ -336,9 +338,9 @@ class MultiPartWriter(object):
             return None
 
     def __next__(self):
-        return self.next()
+        return next(self)
 
-    def next(self):
+    def __next__(self):
         """Next"""
         if self._iter is None:
             self._iter = self._iterator()
@@ -354,9 +356,10 @@ class MultiPartWriter(object):
         """Close"""
         pass
 
+
 JSONTYPES = {
-    'number': integer_types,
-    'string': string_types,
+    'number': int,
+    'string': str,
     'boolean': bool,
     'float': float,
     'object': dict,

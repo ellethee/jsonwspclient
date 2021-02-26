@@ -7,11 +7,13 @@ Jsonwspservice :mod:`jsonwspclient.jsonwspservice`
 """
 # pylint: disable=relative-import
 import logging
+
 import requests
-from six import string_types
+
+from . import jsonwspexceptions as excs
 from . import jsonwsputils as utils
 from .jsonwspmultipart import JSONTYPES
-from . import jsonwspexceptions as excs
+
 log = logging.getLogger('jsonwspclient')
 
 
@@ -43,7 +45,7 @@ class JsonWspService(object):
             """placeholder."""
             for param in [p for p in params if p in self._client.params_mapping]:
                 item = self._client.params_mapping[param]
-                if isinstance(item, string_types):
+                if isinstance(item, str):
                     try:
                         # we use __getattribute__ or it will search the services
                         # methods too.
@@ -56,9 +58,12 @@ class JsonWspService(object):
                     kwargs[param] = item
                 log.debug("Param %s: %s", param, kwargs[param])
             return self._call_method(method_name, **kwargs)
-        self._methods[method_name] = utils.make_method(placeholder, self, self.__class__)
-        self._methods[method_name].__dict__['info'] = self._method_info(method_name)
-        self._methods[method_name].__dict__.update(self._methods[method_name].__dict__['info'])
+        self._methods[method_name] = utils.make_method(
+            placeholder, self, self.__class__)
+        self._methods[method_name].__dict__[
+            'info'] = self._method_info(method_name)
+        self._methods[method_name].__dict__.update(
+            self._methods[method_name].__dict__['info'])
 
     def _load_description(self):
         """Loads description for this service."""
@@ -66,11 +71,11 @@ class JsonWspService(object):
             '/{}/jsonwsp/description'.format(self.name), method='GET')
         response.raise_for_status()
         self._description = response.response_dict
-        self._method_names = self._description['methods'].keys()
-        self._types = self._description['types'].keys()
+        self._method_names = list(self._description['methods'])
+        self._types = list(self._description['types'])
         self.url = '/%s/jsonwsp' % self.name
         for method_name, method in self._description['methods'].items():
-            params = method['params'].keys()
+            params = list(method['params'])
             self._set_new_method(method_name, params)
         self._description_loaded = True
         self._trigger('service.description_loaded', service=self)
@@ -82,7 +87,7 @@ class JsonWspService(object):
         mandatory = []
         optional = []
         params_order = [''] * len(params)
-        for pname, pinfo in params.items():
+        for pname, pinfo in list(params.items()):
             params_order[pinfo['def_order'] - 1] = pname
         for pname in params_order:
             pinfo = params[pname]
@@ -103,7 +108,8 @@ class JsonWspService(object):
         """Check param"""
         cls = JSONTYPES.get(ptype)
         if cls and not isinstance(value, cls):
-            raise excs.ParamsError('Param "{}" must be "{}"'.format(name, ptype))
+            raise excs.ParamsError(
+                'Param "{}" must be "{}"'.format(name, ptype))
 
         def inside_ckeck(lcls, iname=None, itype=None):
             """Inside check"""
@@ -111,7 +117,7 @@ class JsonWspService(object):
                 for item in lcls:
                     inside_ckeck(item)
             elif isinstance(lcls, dict):
-                for cname, ctype in lcls.items():
+                for cname, ctype in list(lcls.items()):
                     ctype = ctype['type']
                     ltype = JSONTYPES.get(ctype)
                     lvalue = value.get(cname)
@@ -144,7 +150,8 @@ class JsonWspService(object):
         data['args'] = kwargs
         if 'mirror' in kwargs:
             data['mirror'] = kwargs.pop('mirror')
-        raise_for_fault = kwargs.pop('raise_for_fault', self._client._raise_for_fault)
+        raise_for_fault = kwargs.pop(
+            'raise_for_fault', self._client._raise_for_fault)
         self._trigger(
             'service.call_method.before', service=self, method=method_name,
             attachment_map=attachment_map, **kwargs)
@@ -167,14 +174,14 @@ class JsonWspService(object):
             self._trigger(
                 'service.call_method.after', service=self, method=method_name,
                 attachment_map=attachment_map, **kwargs)
-            for processors in self._client.processors:
+            for processor in self._client.processors:
                 try:
-                    response = processors(
+                    response = processor(
                         response, service=self, client=self._client,
                         method_name=method_name, **kwargs)
-                except StandardError:
+                except Exception:
                     pass
         return response
 
     def __dir__(self):
-        return sorted(self.__dict__.keys() + self._methods.keys())
+        return sorted(list(self.__dict__) + list(self._methods))
