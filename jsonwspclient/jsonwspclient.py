@@ -65,8 +65,11 @@ class JsonWspClient:
             and/or modify responses before they are returned.
     """
 
+    services = []
+    """([str]): list of service names"""
+
     def __init__(
-            self, url, services, headers=None, events=None, processors=None,
+            self, url, services=None, headers=None, events=None, processors=None,
             params_mapping=None, raise_for_fault=False, auth=None, proxies=None,
             verify=False, response_class=None, **kwargs):
         #: response class
@@ -74,9 +77,9 @@ class JsonWspClient:
         self.session = requests.Session()
         self.session.auth = auth
         self.url = url
-        self.processors = processors or self.processors
+        self.processors = processors or self.__class__.processors
         self._raise_for_fault = raise_for_fault
-        self._observer = utils.Observer(events or self.events)
+        self._observer = utils.Observer(events or self.__class__.events)
         version, release = __version__.split('.', 1)
         self.session.proxies.update(proxies or {})
         self.session.headers.update({
@@ -90,9 +93,10 @@ class JsonWspClient:
         self.session.verify = verify
         self.session.stream = True
         self.extras = kwargs
+        self.services = services or self.__class__.services
         self._services = {}
         self._methods = {}
-        self.params_mapping = params_mapping or self.params_mapping
+        self.params_mapping = params_mapping or self.__class__.params_mapping
         self.last_response = None
         self.add_event = self._observer.add
         self.remove_event = self._observer.remove
