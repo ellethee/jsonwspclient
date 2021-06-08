@@ -59,13 +59,22 @@ def get_charset(headers):
     return None
 
 
+def iter_values(dtc):
+    """flatten values"""
+    for value in dtc.values():
+        if isinstance(value, dict):
+            yield from iter_values(value)
+        else:
+            yield value
+
+
 def check_attachment(items):
     """check_attachment."""
     res = {}
     if not isinstance(items, list):
         items = [items]
     for item in items:
-        for value in list(item.values()):
+        for value in iter_values(item):
             if not isinstance(value, str):
                 continue
             isatt = has_attachments(value)
@@ -114,7 +123,7 @@ def walk_args_dict(kwargs, attachment_map):
                 kwargs[key] = attachment_ref
 
 
-class Observer(object):
+class Observer:
     """Observer for events."""
 
     def __init__(self, events):
@@ -130,14 +139,17 @@ class Observer(object):
         if (name, funct, ) in self._events:
             self._events.remove((name, funct,))
 
-    def trigger(self, event, **kwargs):
+    def trigger(self, event, *args, **kwargs):
         """Trigger."""
+        if not isinstance(event, str):
+            args = (event, ) + args
+            event = event.__class__.__name__.lower()
         for name, funct in self._events:
             if event.startswith(name) or name == '*':
-                funct(event, **kwargs)
+                funct(event, *args, **kwargs)
 
 
-class FileWithCallBack(object):
+class FileWithCallBack:
     """FileWithCallBack."""
 
     def __init__(self, path, callback, mode='rb', size=0):
@@ -149,30 +161,31 @@ class FileWithCallBack(object):
             self._file = io.open(path, mode)
         try:
             self.seek(0, os.SEEK_END)
-            self._total = self.tell() or size
+            self._length = self.tell() or size
             self.seek(0)
         except Exception:
-            self._total = size
+            self._length = size
         self._callback = callback
         self._callback(
-            'file.init', fobj=self._file, value=0, max_value=self._total)
+            'file.init', fobj=self._file, value=0, length=self._length)
 
     def close(self):
         """Close."""
         try:
             self._callback('file.close', fobj=self._file,
-                           value=self._write_bytes, max_value=self._total)
+                           value=self._write_bytes, length=self._length)
             self._file.close()
             self._callback('file.closed', fobj=self._file,
-                           value=self._write_bytes, max_value=self._total)
-        except IOError:
-            pass
+                           value=self._write_bytes, length=self._length)
+        except IOError as error:
+            self._callback('file.error', error=error, fobj=self._file,
+                           value=self._write_bytes, length=self._length)
 
     def __getattr__(self, name):
         return getattr(self._file, name)
 
     def __len__(self):
-        return self._total
+        return self._length
 
     def __enter__(self):
         return self
@@ -185,12 +198,18 @@ class FileWithCallBack(object):
         self._file.write(data)
         self._write_bytes += len(data)
         self._callback('file.write', fobj=self._file,
-                       value=self._write_bytes, max_value=self._total)
+                       value=self._write_bytes, length=self._length)
 
     def read(self, size):
         """read."""
+        if self._read_bytes == 0:
+            self._callback('file.start', fobj=self._file,
+                           value=self._read_bytes, length=self._length)
         data = self._file.read(size)
-        self._read_bytes += len(data or '')
+        self._read_bytes += len(data or "")
         self._callback('file.read', fobj=self._file,
-                       value=self._read_bytes, max_value=self._total)
+                       value=self._read_bytes, length=self._length)
+        if len(data or "") == 0:
+            self._callback('file.end', fobj=self._file,
+                           value=self._read_bytes, length=self._length)
         return data

@@ -13,6 +13,7 @@ import re
 import shutil
 import tempfile
 import time
+import uuid
 from hashlib import md5
 
 from requests.structures import CaseInsensitiveDict
@@ -44,6 +45,11 @@ class JsonWspAttachmentMeta(type):
         return isinstance(JsonWspAttachment, other)
 
 
+def void_callback(_event_name, **_kwargs):
+    """Void callback"""
+    pass
+
+
 class JsonWspAttachment(metaclass=JsonWspAttachmentMeta):
     """Class for the attachments
 
@@ -57,7 +63,7 @@ class JsonWspAttachment(metaclass=JsonWspAttachmentMeta):
         path (str): Temporary file path.
     """
 
-    def __init__(self, index=0):
+    def __init__(self, index=0, callback=None):
         self.att_id = ''
         """(str): Attachment id."""
         self.descriptor, self.path = tempfile.mkstemp(prefix='content_')
@@ -69,6 +75,16 @@ class JsonWspAttachment(metaclass=JsonWspAttachmentMeta):
         """(int): Attachment index."""
         self.size = 0
         """(int): Attachment size."""
+        self._callback = callback or void_callback
+
+    @property
+    def length(self):
+        """length"""
+        try:
+            self.size = os.fstat(self.descriptor).st_size
+        except:
+            pass
+        return self.size
 
     def update(self, headers):
         """update headers"""
@@ -76,7 +92,9 @@ class JsonWspAttachment(metaclass=JsonWspAttachmentMeta):
                              for k, v in list(headers.items())})
         self.att_id = self.headers.get('content-id', self.att_id)
         self.filename = (
-            get_filename(self.headers.get('content-disposition', '')) +
+            get_filename(
+                self.headers.get('content-disposition',
+                                 self.headers.get('x-filename', ''))) +
             [self.filename])[0]
 
     def close(self):
@@ -135,115 +153,178 @@ class JsonWspAttachment(metaclass=JsonWspAttachmentMeta):
 class MultiPartReader(object):
     """Reader"""
 
-    def __init__(self, headers, content, size=None, chunk_size=8192):
+    def __init__(self, headers, content, size=None, chunk_size=8192, callback=None):
         self.attachs = {}
         self.by_id = {}
         self.headers = headers
         self.info = None
-        self._aheads = b''
-        self._asize = 0
-        self._at_eof = False
-        self._at_eop = False
+        self._attach_headers = b''
+        self._attach_size = 0
+        self._end_of_stream = False
+        self._attach_end_of_parts = False
         self._boundary = utils.get_boundary(self.headers).encode()
         self._charset = utils.get_charset(self.headers)
         self._chunk_size = chunk_size
         self._content = content
         self._data = b''
-        self._fid = None
+        self._file_descriptor = None
         self._info_done = 0
         self._last_closed = -1
         self._len_rest_chunk = len(self._boundary) + 16
         self._length = size or int(self.headers.get('Content-Length', '0'))
-        self._parsed = False
+        self._attach_headers_is_parsed = False
         self._part_data = b''
         self._part_headers = {}
-        self._pcount = 0
+        self._part_count = 0
         self._read_bytes = 0
         self._rest = b''
+        self._callback = callback or void_callback
         self._split = re.compile(
             SPLIT.replace(b'<b>', self._boundary.replace(b'"', b''))).split
+        self.uuid = uuid.uuid4().hex
+
+    def get_current_attach(self):
+        """Return current attach if one"""
+        try:
+            attach = self.attachs[self._part_count - 1]
+            if isinstance(attach, JsonWspAttachment):
+                return attach
+        except KeyError:
+            pass
+        return None
 
     def read_chunk(self, size=None):
         """read_chunk"""
-        if self._at_eof:
+        if self._end_of_stream:
             return None
         size = size or self._chunk_size
         chunk_size = min(size, self._length - self._read_bytes)
         chunk = self._content.read(chunk_size)
         self._read_bytes += len(chunk)
-        if self._read_bytes == self._length:
-            self._at_eof = True
+        if not chunk:
+            self._end_of_stream = True
             self._content.close()
         return chunk
 
     def read_all(self, chunk_size=None):
         """read_all"""
-        while not self._at_eof:
+        while not self._end_of_stream:
             self.read(chunk_size)
         return self
 
     def write(self, data, save=False):
         """Write"""
-        if not self._parsed:
-            self._aheads += data
-            has_headers = split_headers(self._aheads)
+        # if attach headers is parsed.
+        if not self._attach_headers_is_parsed:
+            # try to get headers.
+            self._attach_headers += data
+            has_headers = split_headers(self._attach_headers)
             if has_headers:
-                data = self._aheads[has_headers.end():]
-                self._aheads = self._aheads[:has_headers.start()]
-                self._parsed = True
-        if self._parsed:
-            self._asize += len(data)
-            if self._pcount == 0:
+                # if we found some headers, the data will be the rest of chunk.
+                data = self._attach_headers[has_headers.end():]
+                # and headers the first part.
+                self._attach_headers = self._attach_headers[:has_headers.start(
+                )]
+                self._attach_headers_is_parsed = True
+        if self._attach_headers_is_parsed:
+            self._attach_size += len(data)
+            if self._part_count == 0:
+                # if the counter is 0 we add the data for the attach and set
+                # the headers.
                 self._part_data += data
-                self._part_headers = dict(get_headers(self._aheads))
+                self._part_headers = dict(get_headers(self._attach_headers))
             else:
+                # else let's set the info if we haven't done it yet.
                 if not self.info:
                     self.info = json.loads(self._part_data)
                     self.info['headers'] = self._part_headers
                     self._info_done = 1
-                os.write(self._fid, data)
+                # write to the file descriptor.
+                os.write(self._file_descriptor, data)
+            # if we have to save.
             if save:
-                if self._fid is not None:
-                    attach = self.attachs[self._pcount - 1]
-                    attach.update(dict(get_headers(self._aheads)))
-                    attach.size = self._asize
+                if self._file_descriptor is not None:
+                    # if we have a descriptor, retrieve the last attachment,
+                    # update its information and close it.
+                    attach = self.attachs[self._part_count - 1]
+                    attach.update(dict(get_headers(self._attach_headers)))
+                    attach.size = self._attach_size
                     attach.close()
-                    self._last_closed = self._pcount - 1
+                    # set the last closed index
+                    self._last_closed = self._part_count - 1
                     if attach.att_id:
                         self.by_id[attach.att_id] = attach
-                if not self._at_eop:
-                    attach = JsonWspAttachment(self._pcount)
-                    self._fid = attach.descriptor
-                    self.attachs[self._pcount] = attach
-                    self._pcount += 1
-                self._asize = 0
-                self._aheads = b''
-                self._parsed = False
+                if not self._attach_end_of_parts:
+                    # if we are not at the end of the parties maybe we need a
+                    # new attachment.
+                    attach = JsonWspAttachment(self._part_count)
+                    self._file_descriptor = attach.descriptor
+                    self.attachs[self._part_count] = attach
+                    self._part_count += 1
+                # reset some value.
+                self._attach_size = 0
+                self._attach_headers = b''
+                self._attach_headers_is_parsed = False
 
     def read(self, chunk_size=None):
         """read"""
+        if self._read_bytes == 0:
+            self._callback(
+                "multipartreader.start",
+                uuid=self.uuid,
+                value=self._read_bytes,
+                length=self._length,
+                attach=self.get_current_attach(),
+            )
         chunk_size = chunk_size or self._chunk_size
         chunk = self.read_chunk(chunk_size)
+        # let's try to split the chunk using the boundary.
         parts = self._split(self._rest + chunk)
+        # if we have more than 1 part we must handle them.
         if len(parts) > 1:
+            # add the first part to our data.
             self._data += parts[0]
-            self.write(self._data, True)
+            # write the data and save it.
+            self.write(self._data, save=True)
+            # then write and save all the others except the last one.
             for part in parts[1:-1]:
-                self.write(part, True)
+                self.write(part, save=True)
+            # clean up our data.
             self._data = b''
-        self.write(parts[-1:][0][:-self._len_rest_chunk])
-        self._at_eop = self._at_eof
-        if self._at_eof and self._fid:
-            attach = self.attachs[self._pcount - 1]
-            attach.close()
-            os.remove(attach.path)
-            del attach
+        # let's write the last part for this chunk (maybe the only one)
+        # without saving it.
+        self.write(parts[-1:][0][:-self._len_rest_chunk], save=False)
+        self._callback(
+            "multipartreader.read",
+            uuid=self.uuid,
+            value=self._read_bytes,
+            length=self._length,
+            attach=self.get_current_attach(),
+        )
+        # set the attach end of part.
+        self._attach_end_of_parts = self._end_of_stream
+        # if we are at the end of the stream we save the attachment and delete
+        # the temporary file and also delete the attachment.
+        if self._end_of_stream:
+            if self._file_descriptor:
+                attach = self.attachs[self._part_count - 1]
+                attach.close()
+                os.remove(attach.path)
+                del attach
+            self._callback(
+                "multipartreader.end",
+                uuid=self.uuid,
+                value=self._read_bytes,
+                length=self._length,
+                attach=self.get_current_attach(),
+            )
+        # our remainder should be what's left of the last chunk.
         self._rest = parts[-1:][0][-self._len_rest_chunk:]
 
     def iterator(self, chunk_size=None):
         """Iterator"""
         last_closed = self._last_closed
-        while not self._at_eof:
+        while not self._end_of_stream:
             self.read(chunk_size)
             if self._info_done == 1:
                 yield self.info
@@ -301,7 +382,7 @@ class MultiPartWriter(object):
             'Content-ID': 'body'
         }) + json.dumps(self._jsonpart).encode("latin-1") + self._bound
 
-    @staticmethod
+    @ staticmethod
     def _get_attachpart(fileid):
         """The Envelope part"""
         return b"\n" + stringify_headers({

@@ -68,10 +68,13 @@ class JsonWspClient:
     services = []
     """([str]): list of service names"""
 
+    _headers = {}
+    """(dict): Dictionary with base headers."""
+
     def __init__(
             self, url, services=None, headers=None, events=None, processors=None,
             params_mapping=None, raise_for_fault=False, auth=None, proxies=None,
-            verify=False, response_class=None, **kwargs):
+            verify=True, response_class=None, **kwargs):
         #: response class
         self._rcls = response_class or JsonWspResponse
         self.session = requests.Session()
@@ -89,6 +92,7 @@ class JsonWspClient:
             "Accept": "application/json,multipart/related"
         })
         self.trigger = self._observer.trigger
+        self.session.headers.update(self.__class__._headers)
         self.session.headers.update(headers or {})
         self.session.verify = verify
         self.session.stream = True
@@ -100,8 +104,20 @@ class JsonWspClient:
         self.last_response = None
         self.add_event = self._observer.add
         self.remove_event = self._observer.remove
-        for service in services:
+        for service in self.services:
             self._load_service(service)
+
+    @property
+    def headers(self):
+        """headers"""
+        if not self.session:
+            raise ValueError("Session is None")
+        return self.session.headers
+
+    @headers.setter
+    def headers(self, headers):
+        """headers setter"""
+        self.session.headers = headers
 
     def add_events(self, *events):
         """Add events."""
@@ -113,7 +129,6 @@ class JsonWspClient:
         for event, funct in events:
             self._observer.remove(event, funct)
 
-    @property
     def service(self, name):
         """return service.
 
@@ -125,7 +140,6 @@ class JsonWspClient:
         """
         return self._services.get(name)
 
-    @property
     def method(self, name):
         """return method.
 
@@ -153,7 +167,11 @@ class JsonWspClient:
             method=method)
         request = self.session.prepare_request(
             requests.Request(
-                method, urljoin(self.url, path), json=data))
+                method,
+                urljoin(self.url, path),
+                json=data,
+                hooks={'response': self.trigger}
+            ))
         response = self._rcls(self.session.send(request), self.trigger)
         self.trigger(
             'client.post.after', client=self, path=path, data=data,
@@ -184,6 +202,7 @@ class JsonWspClient:
                 url=urljoin(self.url, path),
                 headers=stream.headers,
                 data=stream,
+                hooks={'response': self.trigger}
             ))
         response = self._rcls(self.session.send(request), self.trigger)
         stream.close()
@@ -208,11 +227,17 @@ class JsonWspClient:
     def __getattr__(self, name):
         if name in self._methods:
             return self._methods[name]
-        return self._services[name.lower()]
+        if name.lower() in self._services:
+            return self._services[name.lower()]
+        return super().__getattribute__(name)
 
     def __dir__(self):
-        return sorted(list(self.__dict__) + list(self._methods) +
-                      list(self._services))
+        return sorted(list(set(
+            list(self.__class__.__dict__) +
+            list(self.__dict__) +
+            list(self._methods) +
+            list(self._services)
+        )))
 
     def __enter__(self):
         return self

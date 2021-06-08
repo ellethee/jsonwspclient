@@ -13,7 +13,7 @@ from .jsonwspmultipart import MultiPartReader
 log = logging.getLogger('jsonwspclient')
 
 
-class JsonWspResponse(object):
+class JsonWspResponse:
     """JsonWspResponse (wrapper for `requests Response object <http://docs
     .python-requests.org/en/master/api/#requests.Response>`_) is not meant
     to be instantiate manually but only as response from :any:`JsonWspClient`
@@ -84,15 +84,16 @@ class JsonWspResponse(object):
         self._multipart = MultiPartReader(
             self.headers,
             utils.FileWithCallBack(self.raw, self._trigger, size=self.length),
-            size=self.length)
+            size=self.length,
+            callback=self._trigger)
         return self._multipart.iterator()
 
     @property
     def _reader(self):
-        if self.__reader is None:
-            raise IOError("Reader is None")
-        elif not self.is_multipart:
+        if not self.is_multipart:
             raise TypeError("Is not a multipart response")
+        elif self.__reader is None:
+            raise IOError("Reader is None")
         return self.__reader
 
     def read_all(self, chunk_size=None):
@@ -127,7 +128,10 @@ class JsonWspResponse(object):
         for attach in self._reader:
             if not attach:
                 break
-            filename = self.attachments[attach.att_id][name]
+            try:
+                filename = self.attachments[attach.att_id][name]
+            except KeyError:
+                filename = attach.headers.get("x-filename")
             attach.save(path, filename=filename, overwrite=overwrite)
 
     def raise_for_fault(self):

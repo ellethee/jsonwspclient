@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "jsonwspclient"
+version = "2.1.0"
+description = "Flexible JSON-WSP client."
+license = "LICENSE.txt"
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "License :: OSI Approved :: MIT License",
+  "Intended Audience :: Developers",
+  "Topic :: Internet :: WWW/HTTP"
+]
+homepage = "http://github.com/ellethee/jsonwspclient"
+authors = ["ellethee <luca800@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+requests = "*"
+
+
+[tool.poetry.dev-dependencies]
+pytest = {optional = true, version = "*"}
+pytest-cov = {optional = true, version = "*"}
+Werkzeug = {optional = true, version = "*"}
+pytest_localserver = {optional = true, version = "*"}
+ladon = {optional = true, version = "*"}
+
+[tool.poetry.extras]
+test = [
+  "pytest",
+  "pytest-cov",
+  "Werkzeug",
+  "pytest_localserver",
+  "ladon"
+]
