@@ -3,6 +3,7 @@ name = "jsonwspclient"
 version = "2.1.0"
 description = "Flexible JSON-WSP client."
 license = "LICENSE.txt"
+readme = "README.rst"
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
