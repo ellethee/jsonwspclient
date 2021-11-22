@@ -25,7 +25,7 @@ SPLIT = b'(?m)--<b>\n|\n--<b>\n|\n--<b>--|--<b>\r\n|\r\n--<b>\r\n|\r\n--<b>--'
 get_headers = re.compile(b'(?m)^(?P<name>.+)\s*:\s*(?P<value>.+)\s*$').findall
 split_headers = re.compile(b'(?m)\n\n|\r\n\r\n').search
 get_filename = re.compile(
-    r'(?i)filename=[\"\']?(?P<filename>.+[^\"\'])[\"\']?;?').findall
+    r'(?i)filename=[\"\']?(?P<filename>.+[^\"\'])[\"\']?;?').search
 HDFILL = b'\r\n\r\n'
 HDFIL2 = b'\n\n'
 
@@ -91,11 +91,10 @@ class JsonWspAttachment(metaclass=JsonWspAttachmentMeta):
         self.headers.update({k.decode(): v.decode()
                              for k, v in list(headers.items())})
         self.att_id = self.headers.get('content-id', self.att_id)
-        self.filename = (
-            get_filename(
-                self.headers.get('content-disposition',
-                                 self.headers.get('x-filename', ''))) +
-            [self.filename])[0]
+        filename = get_filename(self.headers.get('content-disposition', ''))
+        if not filename:
+            filename = self.headers.get('x-filename')
+        self.filename = filename or self.filename
 
     def close(self):
         """Try to close the temp file."""
@@ -119,7 +118,7 @@ class JsonWspAttachment(metaclass=JsonWspAttachmentMeta):
             (file): the open file.
         """
         self.close()
-        self.descriptor = open(self.filename, mode)
+        self.descriptor = open(self.path, mode)
         return self.descriptor
 
     def save(self, path, filename=None, overwrite=True):
