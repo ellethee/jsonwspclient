@@ -161,6 +161,13 @@ class JsonWspService(object):
                     self.url, data, attachment_map['files'])
             else:
                 response = self._post(self.url, data)
+            for processor in self._client.processors:
+                try:
+                    response = processor(
+                        response, service=self, client=self._client,
+                        method_name=method_name, **kwargs)
+                except Exception:
+                    pass
             response.raise_for_status()
             if raise_for_fault:
                 response.raise_for_fault()
@@ -174,13 +181,6 @@ class JsonWspService(object):
             self._trigger(
                 'service.call_method.after', service=self, method=method_name,
                 attachment_map=attachment_map, **kwargs)
-            for processor in self._client.processors:
-                try:
-                    response = processor(
-                        response, service=self, client=self._client,
-                        method_name=method_name, **kwargs)
-                except Exception:
-                    pass
         return response
 
     def __dir__(self):
